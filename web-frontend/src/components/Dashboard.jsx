@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -12,7 +12,7 @@ import {
     LineElement
 } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
-import { FaFilePdf, FaChevronDown, FaChevronUp, FaExclamationTriangle, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaFilePdf, FaChevronDown, FaChevronUp, FaExclamationTriangle, FaCheckCircle, FaTimesCircle, FaCog } from 'react-icons/fa';
 
 ChartJS.register(
     CategoryScale,
@@ -30,6 +30,28 @@ const Dashboard = ({ data }) => {
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showOutliers, setShowOutliers] = useState(false);
     const [showCorrelation, setShowCorrelation] = useState(false);
+    const [thresholdSettings, setThresholdSettings] = useState(null);
+    
+    // Fetch threshold settings on mount
+    useEffect(() => {
+        const fetchThresholds = async () => {
+            try {
+                const token = localStorage.getItem('access_token');
+                const response = await fetch('http://127.0.0.1:8000/api/thresholds/', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (response.ok) {
+                    const thresholds = await response.json();
+                    setThresholdSettings(thresholds);
+                }
+            } catch (error) {
+                console.error('Failed to fetch threshold settings:', error);
+            }
+        };
+        fetchThresholds();
+    }, []);
     
     if (!data) return null;
 
@@ -146,16 +168,69 @@ const Dashboard = ({ data }) => {
         }
     }, [processed_data]);
 
+    const downloadPDFReport = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                alert('Authentication token not found. Please login again.');
+                return;
+            }
+            
+            const response = await fetch(`http://127.0.0.1:8000/api/report/${id}/`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `equipment_report_${id}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } else {
+                const errorText = await response.text();
+                console.error('Download failed:', response.status, errorText);
+                alert(`Failed to download report. Status: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Error downloading PDF:', error);
+            alert('Error downloading report. Please check your connection.');
+        }
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div className="glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h2>Dashboard - Upload #{id}</h2>
-                    <p style={{ color: 'var(--text-secondary)' }}>Analysis of {summary.total_count} equipment items.</p>
+                    <p style={{ color: 'var(--text-secondary)' }}>Comprehensive analysis of {summary.total_count} equipment items with advanced visualizations.</p>
                 </div>
-                <a href={`http://127.0.0.1:8000/api/report/${id}/`} target="_blank" rel="noreferrer" className="btn" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-                    <FaFilePdf /> Download PDF Report
-                </a>
+                <button 
+                    onClick={downloadPDFReport}
+                    className="btn" 
+                    style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px', 
+                        textDecoration: 'none',
+                        background: 'linear-gradient(135deg, #58a6ff 0%, #4a8ed9 100%)',
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        color: 'white',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 'bold'
+                    }}
+                >
+                    <FaFilePdf size={18} /> Download Comprehensive PDF Report
+                </button>
             </div>
 
             {/* Health Overview */}
@@ -194,6 +269,45 @@ const Dashboard = ({ data }) => {
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Threshold Configuration Display */}
+            {thresholdSettings && (
+                <div className="glass-card" style={{ backgroundColor: 'rgba(88, 166, 255, 0.1)', borderColor: '#58a6ff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <FaCog size={24} color="#58a6ff" />
+                        <div>
+                            <h3 style={{ margin: 0, color: '#58a6ff' }}>⚙️ Current Threshold Configuration</h3>
+                            <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>
+                                Analysis thresholds configured in backend .env file
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #30363d' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                            <div style={{ padding: '12px', background: '#0d1117', borderRadius: '6px' }}>
+                                <strong style={{ color: '#f59e0b', fontSize: '1.2rem' }}>
+                                    {(thresholdSettings.warning_percentile * 100).toFixed(0)}th Percentile
+                                </strong>
+                                <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                    <strong>Warning Level:</strong> Equipment with parameters above this percentile are flagged as warnings
+                                </div>
+                            </div>
+                            <div style={{ padding: '12px', background: '#0d1117', borderRadius: '6px' }}>
+                                <strong style={{ color: '#ef4444', fontSize: '1.2rem' }}>
+                                    Q3 + {thresholdSettings.outlier_iqr_multiplier} × IQR
+                                </strong>
+                                <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                    <strong>Critical/Outlier Level:</strong> Values beyond this threshold are marked as outliers
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ marginTop: '12px', padding: '8px', background: '#161b22', borderRadius: '4px', fontSize: '0.85rem', color: '#8b949e' }}>
+                            💡 <strong>Tip:</strong> To adjust these thresholds, modify <code>WARNING_PERCENTILE</code> and <code>OUTLIER_IQR_MULTIPLIER</code> in your backend <code>.env</code> file, then restart the Django server.
+                        </div>
+                    </div>
                 </div>
             )}
 

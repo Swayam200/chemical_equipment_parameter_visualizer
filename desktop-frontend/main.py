@@ -190,22 +190,8 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(header_label)
         sidebar_layout.addWidget(self.history_list)
         
-        # Simple refresh button in case the user uploaded from the web app
-        refresh_btn = QPushButton("Refresh History")
-        refresh_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #21262d; 
-                color: #c9d1d9; 
-                border: 1px solid #30363d;
-                padding: 5px;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #30363d;
-            }
-        """)
-        refresh_btn.clicked.connect(self.refresh_history)
-        sidebar_layout.addWidget(refresh_btn)
+        # Auto-refresh happens every 30 seconds, so manual refresh button is not needed
+        # Users can see updates automatically
         
         sidebar_widget = QWidget()
         sidebar_widget.setLayout(sidebar_layout)
@@ -238,7 +224,30 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet("color: #8b949e; margin-left: 10px;")
         
+        # Download PDF Report button
+        self.pdf_btn = QPushButton("📄 Download PDF Report")
+        self.pdf_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #58a6ff; 
+                color: white; 
+                padding: 8px 16px; 
+                font-weight: bold; 
+                border-radius: 6px;
+                border: 1px solid rgba(27,31,35,0.15);
+            }
+            QPushButton:hover {
+                background-color: #79c0ff;
+            }
+            QPushButton:disabled {
+                background-color: #30363d;
+                color: #8b949e;
+            }
+        """)
+        self.pdf_btn.clicked.connect(self.download_pdf_report)
+        self.pdf_btn.setEnabled(False)  # Disabled until data is loaded
+        
         top_bar.addWidget(self.upload_btn)
+        top_bar.addWidget(self.pdf_btn)
         top_bar.addWidget(self.status_label)
         top_bar.addStretch()
         
@@ -338,7 +347,7 @@ class MainWindow(QMainWindow):
         self.outlier_group.setVisible(False)
         layout.addWidget(self.outlier_group)
 
-        # 3. Main Charts Area
+        # 4. Main Charts Area
         self.figure = Figure(figsize=(10, 6), dpi=100)
         self.figure.patch.set_facecolor('#0d1117')
         
@@ -346,7 +355,7 @@ class MainWindow(QMainWindow):
         self.canvas.setStyleSheet("background-color: #0d1117;")
         layout.addWidget(self.canvas)
 
-        # 4. Advanced Analytics Section (Collapsible)
+        # 5. Advanced Analytics Section (Collapsible)
         self.advanced_group = QGroupBox("🔬 Advanced Analytics (Click to expand)")
         self.advanced_group.setCheckable(True)
         self.advanced_group.setChecked(False)
@@ -426,6 +435,38 @@ class MainWindow(QMainWindow):
     def get_headers(self):
         return {'Authorization': self.auth_header}
 
+    def fetch_threshold_settings(self):
+        """Fetches threshold configuration from backend."""
+        try:
+            res = requests.get(f"{API_URL}thresholds/", headers=self.get_headers())
+            if res.status_code == 200:
+                self.threshold_settings = res.json()
+                # Update display if UI is ready
+                if hasattr(self, 'threshold_label'):
+                    self.update_threshold_display()
+        except Exception as e:
+            print(f"Error fetching threshold settings: {e}")
+            self.threshold_settings = None
+
+    def update_threshold_display(self):
+        """Updates the threshold configuration display."""
+        if self.threshold_settings:
+            warning = self.threshold_settings['warning_percentile']
+            iqr = self.threshold_settings['outlier_iqr_multiplier']
+            
+            threshold_text = (
+                f"<b style='color: #58a6ff;'>Current Analysis Thresholds:</b><br><br>"
+                f"<b>Warning Level:</b> {int(warning * 100)}th percentile<br>"
+                f"<span style='color: #8b949e;'>Equipment with parameters above this level are marked as Warning</span><br><br>"
+                f"<b>Critical/Outlier Level:</b> Q3 + {iqr} × IQR<br>"
+                f"<span style='color: #8b949e;'>Values beyond this threshold are marked as outliers</span>"
+            )
+            self.threshold_label.setText(threshold_text)
+        else:
+            self.threshold_label.setText(
+                "<span style='color: #ef4444;'>Unable to load threshold settings</span>"
+            )
+
     def refresh_history(self):
         """Fetches the last 5 uploads from the backend."""
         self.refresh_history_silent(show_error=True)
@@ -490,6 +531,47 @@ class MainWindow(QMainWindow):
         data = self.history_map.get(key)
         if data:
             self.update_ui(data)
+    
+    def download_pdf_report(self):
+        """Downloads the PDF report for the current upload."""
+        if not self.current_data:
+            QMessageBox.warning(self, "No Data", "Please upload or select a dataset first.")
+            return
+        
+        upload_id = self.current_data.get('id')
+        if not upload_id:
+            QMessageBox.warning(self, "Error", "No upload ID found.")
+            return
+        
+        # Ask user where to save the file
+        default_name = f"equipment_report_{upload_id}.pdf"
+        fname, _ = QFileDialog.getSaveFileName(self, 'Save PDF Report', 
+                                              os.path.join(os.getenv('HOME'), default_name), 
+                                              "PDF Files (*.pdf)")
+        if fname:
+            try:
+                self.status_label.setText("Downloading PDF...")
+                QApplication.processEvents()
+                
+                res = requests.get(f"{API_URL}report/{upload_id}/", 
+                                 headers=self.get_headers(), 
+                                 stream=True)
+                
+                if res.status_code == 200:
+                    with open(fname, 'wb') as f:
+                        for chunk in res.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                    
+                    self.status_label.setText("PDF Downloaded")
+                    QMessageBox.information(self, "Success", 
+                                          f"Report saved to:\n{fname}")
+                else:
+                    self.status_label.setText("Download Failed")
+                    QMessageBox.warning(self, "Download Failed", 
+                                      f"Server responded: {res.status_code}")
+            except Exception as e:
+                self.status_label.setText("Download Error")
+                QMessageBox.critical(self, "Error", f"Failed to download report:\n{str(e)}")
     
     def toggle_advanced_analytics(self, checked):
         """Show/hide advanced analytics content when toggled."""
@@ -612,6 +694,9 @@ class MainWindow(QMainWindow):
 
         # 5. Update Advanced Analytics
         self.update_advanced_analytics(summary)
+        
+        # 6. Enable PDF download button
+        self.pdf_btn.setEnabled(True)
 
     def update_advanced_analytics(self, summary):
         """Updates the advanced analytics section."""
