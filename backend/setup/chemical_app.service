@@ -1,0 +1,13 @@
+[Unit]
+Description=Gunicorn instance to serve Chemical App
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/chemical_app/backend
+Environment="PATH=/home/ubuntu/chemical_app/backend/venv/bin"
+ExecStart=/home/ubuntu/chemical_app/backend/venv/bin/gunicorn --workers 3 --bind unix:backend.sock -m 007 core.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
