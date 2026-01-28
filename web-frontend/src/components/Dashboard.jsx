@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import api from '../api';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -37,17 +38,8 @@ const Dashboard = ({ data }) => {
     useEffect(() => {
         const fetchThresholds = async () => {
             try {
-                const token = localStorage.getItem('access_token');
-                const baseUrl = import.meta.env.VITE_API_URL || '/api';
-                const response = await fetch(`${baseUrl}/thresholds/`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                if (response.ok) {
-                    const thresholds = await response.json();
-                    setThresholdSettings(thresholds);
-                }
+                const response = await api.get('/thresholds/');
+                setThresholdSettings(response.data);
             } catch (error) {
                 console.error('Failed to fetch threshold settings:', error);
             }
@@ -172,38 +164,23 @@ const Dashboard = ({ data }) => {
 
     const downloadPDFReport = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            if (!token) {
-                alert('Authentication token not found. Please login again.');
-                return;
-            }
-
-            const baseUrl = import.meta.env.VITE_API_URL || '/api';
-            const response = await fetch(`${baseUrl}/report/${id}/`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+            const response = await api.get(`/report/${id}/`, {
+                responseType: 'blob'
             });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `equipment_report_${id}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            } else {
-                const errorText = await response.text();
-                console.error('Download failed:', response.status, errorText);
-                alert(`Failed to download report. Status: ${response.status}`);
-            }
+            // Create blob link to download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `equipment_report_${id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
         } catch (error) {
             console.error('Error downloading PDF:', error);
-            alert('Error downloading report. Please check your connection.');
+            alert(`Failed to download report. ${error.message}`);
         }
     };
 
