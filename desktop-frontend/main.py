@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QColor
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
@@ -245,9 +246,14 @@ class LoginDialog(QDialog):
         return self.username.text(), self.password.text()
 
 class MainWindow(QMainWindow):
-    def __init__(self, auth_header):
+    # Signal to notify parent that user wants to logout
+    logout_signal = None  # Will be set by parent
+    
+    def __init__(self, auth_header, username="", logout_callback=None):
         super().__init__()
         self.auth_header = auth_header
+        self.username = username
+        self.logout_callback = logout_callback
         
         self.setWindowTitle("Chemical Equipment Visualizer (Desktop)")
         self.resize(1200, 800)
@@ -364,6 +370,31 @@ class MainWindow(QMainWindow):
         top_bar.addWidget(self.status_label)
         top_bar.addStretch()
         
+        # User info and logout button
+        if self.username:
+            user_label = QLabel(f"👤 {self.username}")
+            user_label.setStyleSheet("color: #8b949e; font-size: 12px; margin-right: 10px;")
+            top_bar.addWidget(user_label)
+        
+        self.logout_btn = QPushButton("🚪 LOGOUT")
+        self.logout_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent; 
+                color: #fc2044; 
+                padding: 10px 20px; 
+                font-weight: bold; 
+                border-radius: 2px;
+                border: 1px solid #fc2044;
+                font-family: monospace;
+            }
+            QPushButton:hover {
+                background-color: #fc2044;
+                color: #0b0c10;
+            }
+        """)
+        self.logout_btn.clicked.connect(self.handle_logout)
+        top_bar.addWidget(self.logout_btn)
+        
         main_content_layout.addLayout(top_bar)
 
         # Tabs for different views (Visual Dashboard vs Raw Data Table)
@@ -469,6 +500,35 @@ class MainWindow(QMainWindow):
         
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setStyleSheet("background-color: #0b0c10;")
+        
+        # Add navigation toolbar for zoom/pan
+        self.nav_toolbar = NavigationToolbar(self.canvas, self)
+        self.nav_toolbar.setStyleSheet("""
+            QToolBar {
+                background-color: #1f2833;
+                border: 1px solid #45a29e;
+                border-radius: 4px;
+                padding: 4px;
+                spacing: 4px;
+            }
+            QToolButton {
+                background-color: #e8e8e8;
+                border: 1px solid #45a29e;
+                border-radius: 3px;
+                padding: 6px;
+                margin: 2px;
+                min-width: 28px;
+                min-height: 28px;
+            }
+            QToolButton:hover {
+                background-color: #66fcf1;
+                border-color: #66fcf1;
+            }
+            QToolButton:pressed, QToolButton:checked {
+                background-color: #45a29e;
+            }
+        """)
+        layout.addWidget(self.nav_toolbar)
         layout.addWidget(self.canvas)
 
         # 5. Advanced Analytics Section (Collapsible)
@@ -500,6 +560,35 @@ class MainWindow(QMainWindow):
         self.advanced_figure.patch.set_facecolor('#0b0c10')
         self.advanced_canvas = FigureCanvas(self.advanced_figure)
         self.advanced_canvas.setStyleSheet("background-color: #0b0c10;")
+        
+        # Add navigation toolbar for advanced charts
+        self.advanced_nav_toolbar = NavigationToolbar(self.advanced_canvas, self)
+        self.advanced_nav_toolbar.setStyleSheet("""
+            QToolBar {
+                background-color: #1f2833;
+                border: 1px solid #45a29e;
+                border-radius: 4px;
+                padding: 4px;
+                spacing: 4px;
+            }
+            QToolButton {
+                background-color: #e8e8e8;
+                border: 1px solid #45a29e;
+                border-radius: 3px;
+                padding: 6px;
+                margin: 2px;
+                min-width: 28px;
+                min-height: 28px;
+            }
+            QToolButton:hover {
+                background-color: #66fcf1;
+                border-color: #66fcf1;
+            }
+            QToolButton:pressed, QToolButton:checked {
+                background-color: #45a29e;
+            }
+        """)
+        advanced_layout.addWidget(self.advanced_nav_toolbar)
         advanced_layout.addWidget(self.advanced_canvas)
         
         # Stats summary
@@ -514,6 +603,7 @@ class MainWindow(QMainWindow):
         self.advanced_group.toggled.connect(self.toggle_advanced_analytics)
         
         # Initially hide the content
+        self.advanced_nav_toolbar.setVisible(False)
         self.advanced_canvas.setVisible(False)
         self.stats_summary_label.setVisible(False)
         
@@ -645,7 +735,8 @@ class MainWindow(QMainWindow):
                     except ValueError:
                         time_str = item['uploaded_at'][:16] 
                         
-                    label = f"Upload {item['id']} ({time_str})"
+                    display_id = item.get('user_upload_index') or item['id']
+                    label = f"Upload {display_id} ({time_str})"
                     self.history_map[label] = item
                     self.history_list.addItem(label)
             elif show_error:
@@ -657,26 +748,50 @@ class MainWindow(QMainWindow):
 
     def upload_file(self):
         """Handles the file dialog and upload request."""
+        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+        
         fname, _ = QFileDialog.getOpenFileName(self, 'Open CSV', os.getenv('HOME'), "CSV Files (*.csv)")
         if fname:
-            self.status_label.setText("Uploading...")
+            # File size validation
+            file_size = os.path.getsize(fname)
+            if file_size > MAX_FILE_SIZE:
+                size_mb = file_size / (1024 * 1024)
+                QMessageBox.warning(
+                    self, 
+                    "File Too Large", 
+                    f"Selected file is {size_mb:.2f} MB.\nMaximum allowed size is 5 MB."
+                )
+                return
+            
+            self.status_label.setText(f"Uploading ({file_size / 1024:.1f} KB)...")
             self.upload_btn.setEnabled(False)
-            QApplication.processEvents() # Force UI update
+            QApplication.processEvents()  # Force UI update
             
             try:
-                files = {'file': open(fname, 'rb')}
-                res = requests.post(f"{API_URL}upload/", files=files, headers=self.get_headers())
+                with open(fname, 'rb') as f:
+                    files = {'file': f}
+                    res = requests.post(f"{API_URL}upload/", files=files, headers=self.get_headers())
+                
                 if res.status_code == 201:
                     data = res.json()
                     self.update_ui(data)
-                    self.status_label.setText("Upload Successful")
+                    self.status_label.setText("✓ Upload Successful")
                     self.refresh_history()
                 else:
-                    self.status_label.setText("Error")
-                    QMessageBox.warning(self, "Upload Failed", f"Server responded: {res.text}")
+                    self.status_label.setText("✗ Error")
+                    # Try to get user-friendly error message
+                    try:
+                        error_data = res.json()
+                        error_msg = error_data.get('error', res.text)
+                    except:
+                        error_msg = res.text
+                    QMessageBox.warning(self, "Upload Failed", f"Server responded:\n{error_msg}")
+            except requests.exceptions.ConnectionError:
+                self.status_label.setText("✗ Connection Error")
+                QMessageBox.critical(self, "Connection Error", "Could not connect to the server.\nPlease check if the backend is running.")
             except Exception as e:
-                self.status_label.setText("Connection Error")
-                QMessageBox.critical(self, "Connection Error", str(e))
+                self.status_label.setText("✗ Error")
+                QMessageBox.critical(self, "Upload Error", str(e))
             finally:
                 self.upload_btn.setEnabled(True)
 
@@ -730,6 +845,7 @@ class MainWindow(QMainWindow):
     
     def toggle_advanced_analytics(self, checked):
         """Show/hide advanced analytics content when toggled."""
+        self.advanced_nav_toolbar.setVisible(checked)
         self.advanced_canvas.setVisible(checked)
         self.stats_summary_label.setVisible(checked)
 
@@ -971,30 +1087,65 @@ class MainWindow(QMainWindow):
         )
         self.stats_summary_label.setText(stats_text)
 
+    def handle_logout(self):
+        """Handle logout by calling the callback and closing the window."""
+        reply = QMessageBox.question(
+            self, 
+            'Confirm Logout',
+            'Are you sure you want to logout?',
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.timer.stop()  # Stop auto-refresh
+            if self.logout_callback:
+                self.logout_callback()
+            self.close()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     
-    # Login Flow
-    login = LoginDialog()
-    if login.exec_() == QDialog.Accepted:
-        user, pwd = login.get_credentials()
-        try:
-            # Request JWT
-            res = requests.post(f"{API_URL}login/", data={'username': user, 'password': pwd})
-            if res.status_code == 200:
-                token = res.json()['access']
-                auth_header = f"Bearer {token}"
-                
-                window = MainWindow(auth_header)
-                window.show()
-                sys.exit(app.exec_())
-            else:
-                QMessageBox.critical(None, "Login Failed", "Invalid credentials")
-                sys.exit(0)
-        except Exception as e:
-            QMessageBox.critical(None, "Connection Error", f"Could not connect to server: {e}")
-            sys.exit(0)
-    else:
-        sys.exit(0)
+    def run_app():
+        """Main application loop that handles login/logout cycle."""
+        while True:
+            # Login Flow
+            login = LoginDialog()
+            if login.exec_() != QDialog.Accepted:
+                # User cancelled login
+                return 0
+            
+            user, pwd = login.get_credentials()
+            try:
+                # Request JWT
+                res = requests.post(f"{API_URL}login/", data={'username': user, 'password': pwd})
+                if res.status_code == 200:
+                    token = res.json()['access']
+                    auth_header = f"Bearer {token}"
+                    
+                    # Track if user logged out (vs closed window)
+                    logged_out = [False]  # Use list to allow modification in nested function
+                    
+                    def on_logout():
+                        logged_out[0] = True
+                    
+                    window = MainWindow(auth_header, username=user, logout_callback=on_logout)
+                    window.show()
+                    app.exec_()
+                    
+                    # If user logged out, show login again
+                    if logged_out[0]:
+                        continue
+                    else:
+                        # Window was closed normally
+                        return 0
+                else:
+                    QMessageBox.critical(None, "Login Failed", "Invalid credentials")
+                    continue  # Show login again
+            except Exception as e:
+                QMessageBox.critical(None, "Connection Error", f"Could not connect to server: {e}")
+                continue  # Show login again
+    
+    sys.exit(run_app())

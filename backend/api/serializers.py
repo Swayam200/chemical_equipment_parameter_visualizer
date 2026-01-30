@@ -8,8 +8,8 @@ class UploadedFileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = UploadedFile
-        fields = ['id', 'file', 'uploaded_at', 'summary', 'processed_data', 'username']
-        read_only_fields = ['summary', 'processed_data', 'username']
+        fields = ['id', 'user_upload_index', 'file', 'uploaded_at', 'summary', 'processed_data', 'username']
+        read_only_fields = ['summary', 'processed_data', 'username', 'user_upload_index']
     
     def to_representation(self, instance):
         """

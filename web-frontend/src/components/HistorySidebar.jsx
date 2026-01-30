@@ -44,7 +44,7 @@ const HistorySidebar = ({ onSelectHistory, refreshTrigger }) => {
                     >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                             <FaFileCsv color="var(--accent-color)" />
-                            <span style={{ fontWeight: 500 }}>Upload #{item.id}</span>
+                            <span style={{ fontWeight: 500 }}>Upload #{item.user_upload_index || item.id}</span>
                         </div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                             {new Date(item.uploaded_at).toLocaleString()}

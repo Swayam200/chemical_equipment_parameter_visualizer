@@ -7,7 +7,9 @@ React-based web application for analyzing and visualizing chemical equipment dat
 - **React 18**: UI framework
 - **Vite**: Build tool and dev server
 - **Chart.js**: Data visualization library
+- **chartjs-plugin-zoom**: Interactive chart zoom/pan functionality
 - **Axios**: HTTP client for API communication
+- **react-dropzone**: Drag & drop file upload
 
 ## Quick Start
 
@@ -18,19 +20,25 @@ npm run dev
 
 Visit: http://localhost:5173/
 
+---
+
 ## Features Overview
 
 ### 1. User Authentication
 
 - Register new accounts with email validation
 - Login with JWT token-based authentication
+- **Automatic token refresh** when tokens expire (no manual re-login needed)
 - Toggle between login/register modes with a single click
 
 ### 2. File Upload
 
 - Drag & drop CSV files or click to browse
-- Real-time upload progress indicator
+- **File size validation** (5MB maximum limit)
+- **Real-time progress bar** during upload
+- Displays file name and size during upload
 - Automatic data processing and validation
+- User-friendly error messages for validation failures
 
 ### 3. Dashboard Visualizations
 
@@ -41,18 +49,47 @@ Visit: http://localhost:5173/
 - **Average Pressure**: Mean value with min/max ranges
 - **Average Temperature**: Mean value with min/max ranges
 
-#### Main Charts
+#### Interactive Charts
 
-- **Equipment Type Distribution** (Pie Chart): Breakdown by equipment type
-- **Average Parameters** (Bar Chart): Side-by-side comparison of flowrate, pressure, and temperature
+All charts support:
+- **Scroll to zoom** in/out on data
+- **Ctrl+drag to pan** across the chart
+- **Reset Zoom button** to restore original view
 
-### 4. Advanced Analytics (Expandable Section)
+##### Equipment Type Distribution (Pie Chart)
+- Breakdown by equipment type with percentages
+- Interactive tooltips on hover
 
-#### A. Outlier Detection
+##### Flowrate & Temperature Trends (Line Chart)
+- Dual-axis visualization
+- **Enhanced tooltips** showing:
+  - Equipment name
+  - Parameter values
+  - Equipment type
+  - Health status
+- Zoom and pan enabled
+
+### 4. Upload History
+
+- Last 5 uploads displayed in sidebar
+- Click to load any previous upload
+- **User-scoped sequential numbering** (Upload #1, #2, #3...)
+- Timestamps in local timezone
+
+### 5. PDF Report Generation
+
+- Download comprehensive PDF reports
+- Professional styling with header/footer
+- Includes all charts and data tables
+- Color-coded health status indicators
+
+---
+
+## Advanced Analytics (Expandable Section)
+
+### A. Outlier Detection
 
 **Algorithm:** IQR (Interquartile Range) Method
-
-**Calculation:**
 
 ```
 Q1 = 25th percentile
@@ -68,194 +105,129 @@ Outlier if: value < Lower Bound OR value > Upper Bound
 
 - Red alert banner when outliers are detected
 - Lists up to 5 equipment with outlier parameters
-- Shows which parameters (Flowrate, Pressure, Temperature) are outliers with actual values
+- Shows which parameters are outliers with actual values and bounds
 
-#### B. Type Comparison Chart (Bar Chart)
+### B. Type Comparison Chart
 
-**Purpose:** Compare average parameters across different equipment types
+- Compare average parameters across equipment types
+- Grouped bar chart with Flowrate, Pressure, Temperature
+- Identify which types operate at higher/lower parameters
 
-**Methodology:**
+### C. Correlation Heatmap
 
-- Groups equipment by Type field
-- Calculates mean Flowrate, Pressure, Temperature for each type
-- Displays as grouped bar chart with 3 bars per type
+- Pearson correlation coefficient (-1 to +1)
+- Color coding: Red (positive), Blue (negative), Green (neutral)
 
-**Use Case:** Identify which equipment types typically operate at higher/lower parameters
+### D. Health Status Indicators
 
-#### C. Correlation Heatmap
+| Status | Color | Criteria |
+|--------|-------|----------|
+| 🟢 **Normal** | Green | All parameters below 75th percentile, no outliers |
+| 🟡 **Warning** | Yellow | Any parameter above 75th percentile |
+| 🔴 **Critical** | Red | Any parameter is an outlier |
 
-**Purpose:** Identify relationships between parameters
+---
 
-**Calculation:** Pearson correlation coefficient
+## User Guide
 
-```
-Values range: -1 to +1
-+1: Perfect positive correlation
- 0: No correlation
--1: Perfect negative correlation
-```
+### Uploading Files
 
-**Color Coding:**
+1. Click the upload area or drag a CSV file onto it
+2. Maximum file size: **5 MB**
+3. Required CSV columns:
+   - Equipment Name
+   - Type
+   - Flowrate
+   - Pressure
+   - Temperature
+4. Wait for the progress bar to complete
+5. Dashboard updates automatically
 
-- **Red**: Strong positive correlation (0.6 to 1.0)
-- **Yellow**: Moderate correlation (0.3 to 0.6 or -0.3 to -0.6)
-- **Blue**: Strong negative correlation (-1.0 to -0.6)
-- **Green**: Weak/no correlation (-0.3 to 0.3)
+### Using Chart Zoom/Pan
 
-**Interpretation Example:**
+| Action | Result |
+|--------|--------|
+| **Scroll wheel** | Zoom in/out |
+| **Ctrl + drag** | Pan the chart |
+| **Click Reset Zoom** | Return to original view |
 
-- High correlation between Flowrate and Pressure suggests they change together
-- Negative correlation suggests inverse relationship
+### Understanding Tooltips
 
-#### D. Health Status Indicators
+Hover over any data point to see:
+- Equipment name
+- Parameter values (Flowrate, Temperature)
+- Equipment type
+- Current health status
 
-**Purpose:** Quick visual assessment of equipment condition
+### Downloading PDF Reports
 
-**Health Status Classification:**
+1. Upload or select a dataset from history
+2. Click the **"Download PDF Report"** button
+3. Report includes:
+   - Summary statistics
+   - Type distribution chart
+   - Complete data table
+   - Outlier alerts
 
-| Status          | Color  | Hex Code  | Criteria                                                                             |
-| --------------- | ------ | --------- | ------------------------------------------------------------------------------------ |
-| 🟢 **Normal**   | Green  | `#10b981` | All parameters within normal ranges (below 75th percentile) AND no outliers detected |
-| 🟡 **Warning**  | Yellow | `#f59e0b` | One or more parameters in upper 25% (>75th percentile) BUT no outliers               |
-| 🔴 **Critical** | Red    | `#ef4444` | One or more parameters flagged as outliers using IQR method                          |
+---
 
-**Detailed Logic:**
+## Error Handling
 
-```javascript
-if (equipment has outlier parameters) {
-  status = "Critical" (Red)
-} else if (Flowrate > 75th percentile OR
-           Pressure > 75th percentile OR
-           Temperature > 75th percentile) {
-  status = "Warning" (Yellow)
-} else {
-  status = "Normal" (Green)
-}
-```
+### File Upload Errors
 
-**Warning Threshold Explanation:**
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "File too large" | File exceeds 5 MB | Reduce file size or split data |
+| "Invalid file type" | Not a CSV file | Use .csv extension |
+| "Network error" | Connection issue | Check backend is running |
 
-- **75th Percentile**: Means the value is higher than 75% of all equipment
-- Equipment in the top 25% (75th-100th percentile) may need monitoring
-- This is a relative threshold calculated per dataset
+### Authentication Errors
 
-**Why 75th Percentile?**
+- **Token expired**: Automatically refreshed (no action needed)
+- **Invalid credentials**: Check username/password
+- **Network error**: Verify backend server is running at http://127.0.0.1:8000
 
-- Standard statistical practice for identifying high performers/outliers
-- Balances sensitivity (catches potential issues) with specificity (avoids false alarms)
-- Provides early warning before parameters become critical outliers
+---
 
-#### E. Enhanced Statistics
+## Configuration
 
-- **Standard Deviation**: Shows parameter variability
-- **Min/Max Values**: Displays full range of each parameter
-- **Statistical Summary**: Comprehensive breakdown below charts
+### Threshold Settings
 
-## Health Status Threshold Configuration
-
-### Current Implementation
-
-Thresholds are **hardcoded** in the backend (`backend/api/views.py` lines 195-208):
-
-```python
-# Warning threshold: 75th percentile
-if (row['Flowrate'] > df['Flowrate'].quantile(0.75) or
-    row['Pressure'] > df['Pressure'].quantile(0.75) or
-    row['Temperature'] > df['Temperature'].quantile(0.75)):
-    health_status = 'warning'
-
-# Critical threshold: IQR outlier detection (1.5 × IQR)
-```
-
-### Making Thresholds Admin-Configurable
-
-**Feasibility: HIGH** ✅
-
-**Recommended Approaches:**
-
-#### Option 1: Django Admin Settings (Simple) - **RECOMMENDED**
-
-1. Create a `Settings` model in Django:
-
-```python
-class AnalyticsSettings(models.Model):
-    warning_percentile = models.FloatField(default=0.75)  # 75th percentile
-    outlier_multiplier = models.FloatField(default=1.5)   # IQR multiplier
-    updated_at = models.DateTimeField(auto_now=True)
-```
-
-2. Register in admin panel
-3. Query settings in `FileUploadView` before calculations
-4. **Pros:** No code changes needed, easy to use
-5. **Cons:** Requires backend restart to take effect
-
-#### Option 2: Environment Variables (Moderate)
-
-1. Add to `backend/.env`:
+Thresholds are configured in the backend `.env` file:
 
 ```env
-WARNING_PERCENTILE=0.75
-OUTLIER_IQR_MULTIPLIER=1.5
+WARNING_PERCENTILE=0.75          # 75th percentile for warnings
+OUTLIER_IQR_MULTIPLIER=1.5       # IQR multiplier for critical
 ```
 
-2. Read in views using `os.getenv()`
-3. **Pros:** Can be changed without code deployment
-4. **Cons:** Requires server restart
+See [Backend README](../backend/README.md) for detailed configuration guide.
 
-#### Option 3: Admin Dashboard UI (Advanced)
-
-1. Create new React admin dashboard page
-2. API endpoint: `PUT /api/settings/`
-3. Store in Django cache or database
-4. Real-time updates without restart
-5. **Pros:** Best UX, instant updates
-6. **Cons:** Requires significant development time
-
-**Recommendation for Production:** Option 3 (Admin Dashboard UI) for the best user experience, but start with Option 1 for quick implementation.
-
-### Modifying Thresholds Manually (Current Setup)
-
-To change thresholds, edit `backend/api/views.py`:
-
-1. **Warning Threshold** (line 197):
-   - Change `quantile(0.75)` to desired percentile
-   - Example: `quantile(0.80)` = 80th percentile (more lenient)
-   - Example: `quantile(0.70)` = 70th percentile (more strict)
-
-2. **Critical Threshold** (lines 159-164):
-   - Change `1.5 * IQR` multiplier
-   - Standard: 1.5 (moderate outlier detection)
-   - Strict: 1.0 (more equipment flagged as critical)
-   - Lenient: 2.0 or 3.0 (fewer equipment flagged)
-
-**After changes:** Restart backend server for changes to take effect.
-
-## Color Scheme
-
-The web frontend uses a GitHub-inspired dark theme:
-
-| Element                | Color         | Hex Code  |
-| ---------------------- | ------------- | --------- |
-| Background             | Very Dark     | `#0d1117` |
-| Cards/Panels           | Dark Gray     | `#161b22` |
-| Borders                | Medium Gray   | `#30363d` |
-| Primary Text           | Light Gray    | `#c9d1d9` |
-| Accent (Links/Buttons) | Blue          | `#58a6ff` |
-| Success/Normal         | Green         | `#10b981` |
-| Warning                | Yellow/Orange | `#f59e0b` |
-| Error/Critical         | Red           | `#ef4444` |
+---
 
 ## API Integration
 
 **Base URL:** `http://127.0.0.1:8000/api/`
 
-**Authentication:** JWT tokens in Authorization header
+**Authentication:** JWT tokens with automatic refresh
 
 ```javascript
-headers: {
-  'Authorization': `Bearer ${token}`
-}
+// Tokens stored in localStorage
+localStorage.getItem('access_token')
+localStorage.getItem('refresh_token')
 ```
+
+**Key Endpoints:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/register/` | POST | Create account |
+| `/api/login/` | POST | Get JWT tokens |
+| `/api/token/refresh/` | POST | Refresh expired token |
+| `/api/upload/` | POST | Upload CSV file |
+| `/api/history/` | GET | Get last 5 uploads |
+| `/api/report/<id>/` | GET | Download PDF report |
+
+---
 
 ## Build for Production
 
@@ -270,3 +242,24 @@ Output in `dist/` directory. Serve with any static file server.
 - Chrome/Edge: Latest 2 versions
 - Firefox: Latest 2 versions
 - Safari: Latest 2 versions
+
+---
+
+## Dependencies
+
+```json
+{
+  "react": "^18.x",
+  "vite": "^6.x",
+  "chart.js": "^4.x",
+  "chartjs-plugin-zoom": "^2.x",
+  "axios": "^1.x",
+  "react-dropzone": "^14.x",
+  "react-icons": "^5.x"
+}
+```
+
+Install all dependencies:
+```bash
+npm install
+```

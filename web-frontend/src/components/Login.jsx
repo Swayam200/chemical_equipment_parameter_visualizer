@@ -24,9 +24,10 @@ const Login = ({ onLogin }) => {
     try {
       const response = await api.post('login/', { username, password });
 
-      // Store JWT token
+      // Store JWT token and username
       localStorage.setItem('access_token', response.data.access);
       localStorage.setItem('refresh_token', response.data.refresh);
+      localStorage.setItem('username', username);
 
       // Notify parent
       onLogin();
@@ -60,9 +61,10 @@ const Login = ({ onLogin }) => {
     try {
       const response = await api.post('register/', { username, email, password });
 
-      // Store JWT token
+      // Store JWT token and username
       localStorage.setItem('access_token', response.data.access);
       localStorage.setItem('refresh_token', response.data.refresh);
+      localStorage.setItem('username', username);
 
       setSuccess("Registration successful! Logging you in...");
 

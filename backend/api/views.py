@@ -300,6 +300,50 @@ class HistoryView(generics.ListAPIView):
 class PDFReportView(APIView):
     permission_classes = [IsAuthenticated]
     
+    # Professional color scheme
+    COLORS = {
+        'primary': colors.HexColor('#1a1a2e'),      # Dark navy
+        'secondary': colors.HexColor('#16213e'),    # Darker blue
+        'accent': colors.HexColor('#0f3460'),       # Blue accent
+        'highlight': colors.HexColor('#e94560'),    # Red highlight
+        'success': colors.HexColor('#10b981'),      # Green
+        'warning': colors.HexColor('#f59e0b'),      # Amber
+        'danger': colors.HexColor('#ef4444'),       # Red
+        'text': colors.HexColor('#333333'),         # Dark gray text
+        'text_light': colors.HexColor('#666666'),   # Light gray text
+        'header_bg': colors.HexColor('#1f2937'),    # Header background
+        'table_header': colors.HexColor('#374151'), # Table header
+        'table_alt': colors.HexColor('#f3f4f6'),    # Alternating row
+    }
+    
+    def draw_header(self, p, width, height, title="Chemical Equipment Analysis Report"):
+        """Draw a professional header bar on the page."""
+        # Header background
+        p.setFillColor(self.COLORS['header_bg'])
+        p.rect(0, height - 80, width, 80, fill=True, stroke=False)
+        
+        # Header title
+        p.setFillColor(colors.white)
+        p.setFont("Helvetica-Bold", 22)
+        p.drawString(50, height - 50, title)
+        
+        # Accent line
+        p.setStrokeColor(self.COLORS['highlight'])
+        p.setLineWidth(3)
+        p.line(50, height - 65, 250, height - 65)
+        
+        return height - 100  # Return new Y position
+    
+    def draw_footer(self, p, width, page_num, total_pages=3):
+        """Draw a professional footer."""
+        p.setFillColor(self.COLORS['header_bg'])
+        p.rect(0, 0, width, 40, fill=True, stroke=False)
+        
+        p.setFillColor(colors.white)
+        p.setFont("Helvetica", 9)
+        p.drawString(50, 15, "Chemical Equipment Visualizer")
+        p.drawRightString(width - 50, 15, f"Page {page_num} of {total_pages}")
+    
     # Fix 406 error by allowing any content type
     def get(self, request, pk, *args, **kwargs):
         try:
@@ -312,119 +356,122 @@ class PDFReportView(APIView):
             p = canvas.Canvas(response, pagesize=A4)
             width, height = A4
             
-            # Helper to manage Y-position
-            current_y = height - 50
-            
             stats = instance.summary
             processed_data = instance.processed_data
             df = pd.DataFrame(processed_data)
             
             # --- PAGE 1: Summary ---
+            current_y = self.draw_header(p, width, height)
             
-            # Title
-            p.setFont("Helvetica-Bold", 20)
-            p.drawString(50, current_y, "Chemical Equipment Analysis Report")
-            current_y -= 30
+            # Metadata box
+            p.setFillColor(self.COLORS['table_alt'])
+            p.roundRect(40, current_y - 80, width - 80, 70, 5, fill=True, stroke=False)
             
-            # Metadata
+            p.setFillColor(self.COLORS['text'])
             p.setFont("Helvetica", 10)
-            p.drawString(50, current_y, f"Upload ID: #{pk}")
-            current_y -= 15
             
             # Use local timezone for both timestamps
             import pytz
             from datetime import datetime as dt
             
-            # Get current time in IST timezone
-            local_tz = pytz.timezone('Asia/Kolkata')  # IST
+            local_tz = pytz.timezone('Asia/Kolkata')
             generated_at = dt.now(local_tz)
-            
-            # Convert UTC uploaded_at to local timezone
-            # instance.uploaded_at is timezone-aware in UTC
             uploaded_at_local = instance.uploaded_at.astimezone(local_tz)
             
-            p.drawString(50, current_y, f"Generated: {generated_at.strftime('%d/%m/%Y, %H:%M:%S')}")
-            current_y -= 15
-            p.drawString(50, current_y, f"Uploaded: {uploaded_at_local.strftime('%d/%m/%Y, %H:%M:%S')}")
-            current_y -= 15
-            p.drawString(50, current_y, f"User: {request.user.username}")
+            p.drawString(50, current_y - 25, f"Report ID: #{pk}")
+            p.drawString(250, current_y - 25, f"User: {request.user.username}")
+            p.drawString(50, current_y - 45, f"Generated: {generated_at.strftime('%d %b %Y, %H:%M:%S IST')}")
+            p.drawString(50, current_y - 65, f"Data Uploaded: {uploaded_at_local.strftime('%d %b %Y, %H:%M:%S IST')}")
+            
+            current_y -= 100
+            
+            # Summary Statistics Header with styled background
+            p.setFillColor(self.COLORS['accent'])
+            p.roundRect(40, current_y - 25, 200, 25, 3, fill=True, stroke=False)
+            p.setFillColor(colors.white)
+            p.setFont("Helvetica-Bold", 12)
+            p.drawString(50, current_y - 18, "📊 Summary Statistics")
             current_y -= 40
             
-            # Summary Statistics Header
-            p.setFont("Helvetica-Bold", 14)
-            p.drawString(50, current_y, "Summary Statistics")
-            current_y -= 20
-            
-            # Summary Table Data
+            # Summary Table Data with better styling
             summary_data = [
-                ["Metric", "Value"],
-                ["Total Equipment Count", str(stats.get('total_count', 0))],
-                ["Average Flowrate", f"{stats.get('avg_flowrate', 0):.2f}"],
-                ["Average Pressure", f"{stats.get('avg_pressure', 0):.2f}"],
-                ["Average Temperature", f"{stats.get('avg_temperature', 0):.2f}"],
-                ["Min Flowrate", f"{stats.get('min_flowrate', 0):.2f}"],
-                ["Max Flowrate", f"{stats.get('max_flowrate', 0):.2f}"],
-                ["Min Pressure", f"{stats.get('min_pressure', 0):.2f}"],
-                ["Max Pressure", f"{stats.get('max_pressure', 0):.2f}"],
-                ["Min Temperature", f"{stats.get('min_temperature', 0):.2f}"],
-                ["Max Temperature", f"{stats.get('max_temperature', 0):.2f}"],
+                ["Metric", "Value", "Metric", "Value"],
+                ["Total Equipment", str(stats.get('total_count', 0)), "Avg Flowrate", f"{stats.get('avg_flowrate', 0):.2f}"],
+                ["Avg Pressure", f"{stats.get('avg_pressure', 0):.2f}", "Avg Temperature", f"{stats.get('avg_temperature', 0):.2f}"],
+                ["Min Flowrate", f"{stats.get('min_flowrate', 0):.2f}", "Max Flowrate", f"{stats.get('max_flowrate', 0):.2f}"],
+                ["Min Pressure", f"{stats.get('min_pressure', 0):.2f}", "Max Pressure", f"{stats.get('max_pressure', 0):.2f}"],
+                ["Min Temperature", f"{stats.get('min_temperature', 0):.2f}", "Max Temperature", f"{stats.get('max_temperature', 0):.2f}"],
             ]
             
-            table = Table(summary_data, colWidths=[200, 100])
+            table = Table(summary_data, colWidths=[120, 80, 120, 80])
             table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#58a6ff')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('BACKGROUND', (0, 0), (-1, 0), self.COLORS['table_header']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f0f0f0')),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+                ('BACKGROUND', (0, 2), (-1, 2), self.COLORS['table_alt']),
+                ('BACKGROUND', (0, 4), (-1, 4), self.COLORS['table_alt']),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
+                ('ROUNDEDCORNERS', [5, 5, 5, 5]),
             ]))
             
-            # Dynamically calculate height to position correctly
             w, h = table.wrap(width - 100, height)
             table.drawOn(p, 50, current_y - h)
             current_y -= (h + 30)
             
-            # Type Distribution
+            # Type Distribution with styled header
+            p.setFillColor(self.COLORS['accent'])
+            p.roundRect(40, current_y - 25, 220, 25, 3, fill=True, stroke=False)
+            p.setFillColor(colors.white)
             p.setFont("Helvetica-Bold", 12)
-            p.drawString(50, current_y, "Equipment Type Distribution:")
-            current_y -= 20
+            p.drawString(50, current_y - 18, "🔧 Equipment Type Distribution")
+            current_y -= 40
             
             type_dist = stats.get('type_distribution', {})
             p.setFont("Helvetica", 10)
+            p.setFillColor(self.COLORS['text'])
             
             for k, v in type_dist.items():
-                # Check for page break
-                if current_y < 50:
+                if current_y < 80:
+                    self.draw_footer(p, width, 1)
                     p.showPage()
-                    current_y = height - 50
+                    current_y = self.draw_header(p, width, height, "Summary (continued)")
                     p.setFont("Helvetica", 10)
+                    p.setFillColor(self.COLORS['text'])
                     
                 p.drawString(70, current_y, f"• {k}: {v} units")
-                current_y -= 15
+                current_y -= 18
             
-            # Outlier Alert
+            # Outlier Alert with styled box
             outliers = stats.get('outliers', [])
             if outliers and len(outliers) > 0:
-                current_y -= 10
-                if current_y < 50:
+                current_y -= 15
+                if current_y < 80:
+                    self.draw_footer(p, width, 1)
                     p.showPage()
-                    current_y = height - 50
-                    
-                p.setFont("Helvetica-Bold", 12)
-                p.setFillColorRGB(0.937, 0.266, 0.266)
-                p.drawString(50, current_y, f"⚠ {len(outliers)} Equipment Outliers Detected")
-                p.setFillColorRGB(0, 0, 0)
+                    current_y = self.draw_header(p, width, height, "Summary (continued)")
+                
+                # Alert box
+                p.setFillColor(colors.HexColor('#fef2f2'))
+                p.roundRect(40, current_y - 35, width - 80, 35, 5, fill=True, stroke=False)
+                p.setStrokeColor(self.COLORS['danger'])
+                p.setLineWidth(2)
+                p.roundRect(40, current_y - 35, width - 80, 35, 5, fill=False, stroke=True)
+                
+                p.setFillColor(self.COLORS['danger'])
+                p.setFont("Helvetica-Bold", 11)
+                p.drawString(55, current_y - 23, f"⚠️ ALERT: {len(outliers)} Equipment Outliers Detected")
 
+            self.draw_footer(p, width, 1)
             p.showPage()
             
             # --- PAGE 2: Charts ---
-            current_y = height - 50
-            p.setFont("Helvetica-Bold", 16)
-            p.drawString(50, current_y, "Visualization Charts")
-            current_y -= 30
+            current_y = self.draw_header(p, width, height, "Visualization Charts")
             
             # Generate charts
             fig = None
@@ -507,13 +554,11 @@ class PDFReportView(APIView):
                 if fig:
                     plt.close(fig)
 
+            self.draw_footer(p, width, 2)
             p.showPage()
             
             # --- PAGE 3: Data Table ---
-            current_y = height - 50
-            p.setFont("Helvetica-Bold", 16)
-            p.drawString(50, current_y, "Equipment Data Table")
-            current_y -= 30
+            current_y = self.draw_header(p, width, height, "Equipment Data Table")
             
             # Prepare table data
             table_data = [list(df.columns[:5])]
@@ -522,14 +567,18 @@ class PDFReportView(APIView):
             
             data_table = Table(table_data, colWidths=[100, 80, 80, 80, 80])
             data_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#58a6ff')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('BACKGROUND', (0, 0), (-1, 0), self.COLORS['table_header']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
                 ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.black)
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                ('TOPPADDING', (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
+                # Alternating row colors
+                *[('BACKGROUND', (0, i), (-1, i), self.COLORS['table_alt']) for i in range(2, len(table_data), 2)],
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
             ]))
             
             # Dynamic height calculation for the Data Table
@@ -537,13 +586,11 @@ class PDFReportView(APIView):
             data_table.drawOn(p, 50, current_y - h)
             
             if len(df) > 25:
+                p.setFillColor(self.COLORS['text_light'])
                 p.setFont("Helvetica-Italic", 9)
                 p.drawString(50, current_y - h - 15, f"Showing first 25 of {len(df)} equipment items")
             
-            # Footer
-            p.setFont("Helvetica", 8)
-            p.drawString(50, 30, f"Generated by Chemical Equipment Visualizer | Page 3 of 3")
-            
+            self.draw_footer(p, width, 3)
             p.showPage()
             p.save()
             return response

@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import api from '../api';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import api, { formatErrorMessage } from '../api';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -12,8 +12,9 @@ import {
     PointElement,
     LineElement
 } from 'chart.js';
+import zoomPlugin from 'chartjs-plugin-zoom';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
-import { FaFilePdf, FaChevronDown, FaChevronUp, FaExclamationTriangle, FaCheckCircle, FaTimesCircle, FaCog } from 'react-icons/fa';
+import { FaFilePdf, FaChevronDown, FaChevronUp, FaExclamationTriangle, FaCheckCircle, FaTimesCircle, FaCog, FaSearchPlus, FaUndo } from 'react-icons/fa';
 
 ChartJS.register(
     CategoryScale,
@@ -24,7 +25,8 @@ ChartJS.register(
     Legend,
     ArcElement,
     PointElement,
-    LineElement
+    LineElement,
+    zoomPlugin
 );
 
 const Dashboard = ({ data }) => {
@@ -33,6 +35,55 @@ const Dashboard = ({ data }) => {
     const [showCorrelation, setShowCorrelation] = useState(false);
     const [showThresholds, setShowThresholds] = useState(false);
     const [thresholdSettings, setThresholdSettings] = useState(null);
+
+    // Chart refs for reset zoom functionality
+    const lineChartRef = useRef(null);
+    const barChartRef = useRef(null);
+    const typeComparisonRef = useRef(null);
+
+    // Common enhanced tooltip configuration
+    const enhancedTooltip = {
+        enabled: true,
+        backgroundColor: 'rgba(11, 12, 16, 0.95)',
+        titleColor: '#66fcf1',
+        bodyColor: '#c5c6c7',
+        borderColor: '#45a29e',
+        borderWidth: 1,
+        padding: 12,
+        cornerRadius: 4,
+        titleFont: { size: 14, weight: 'bold', family: "'JetBrains Mono', monospace" },
+        bodyFont: { size: 12, family: "'Inter', sans-serif" },
+        displayColors: true,
+        boxPadding: 4,
+    };
+
+    // Zoom and Pan configuration
+    const zoomOptions = {
+        pan: {
+            enabled: true,
+            mode: 'xy',
+            modifierKey: 'ctrl', // Hold Ctrl to pan
+        },
+        zoom: {
+            wheel: {
+                enabled: true,
+            },
+            pinch: {
+                enabled: true,
+            },
+            mode: 'xy',
+            onZoomComplete: ({ chart }) => {
+                chart.update('none');
+            }
+        },
+    };
+
+    // Reset zoom function
+    const resetZoom = (chartRef) => {
+        if (chartRef.current) {
+            chartRef.current.resetZoom();
+        }
+    };
 
     // Fetch threshold settings on mount
     useEffect(() => {
@@ -49,7 +100,8 @@ const Dashboard = ({ data }) => {
 
     if (!data) return null;
 
-    const { summary, processed_data, id } = data;
+    const { summary, processed_data, id, user_upload_index } = data;
+    const displayId = user_upload_index || id;
 
     // Chart Data Preparation
     const typeChartData = useMemo(() => {
@@ -188,7 +240,7 @@ const Dashboard = ({ data }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div className="glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                    <h2>Dashboard - Upload #{id}</h2>
+                    <h2>Dashboard - Upload #{displayId}</h2>
                     <p style={{ color: 'var(--text-secondary)' }}>Comprehensive analysis of {summary.total_count} equipment items with advanced visualizations.</p>
                 </div>
                 <button
@@ -430,9 +482,78 @@ const Dashboard = ({ data }) => {
             </div>
 
             <div className="glass-card">
-                <h3>Flowrate & Temperature Trends</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h3 style={{ margin: 0 }}>Flowrate & Temperature Trends</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            <FaSearchPlus style={{ marginRight: '4px' }} />
+                            Scroll to zoom • Ctrl+drag to pan
+                        </span>
+                        <button
+                            onClick={() => resetZoom(lineChartRef)}
+                            style={{
+                                background: 'transparent',
+                                border: '1px solid var(--accent-color)',
+                                color: 'var(--accent-color)',
+                                padding: '4px 8px',
+                                borderRadius: '2px',
+                                cursor: 'pointer',
+                                fontSize: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}
+                        >
+                            <FaUndo size={10} /> Reset
+                        </button>
+                    </div>
+                </div>
                 <div style={{ height: '300px' }}>
-                    <Line data={flowChartData} options={{ responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }, x: { ticks: { color: '#8b949e' }, grid: { display: false } } }, plugins: { legend: { labels: { color: '#e6edf3' } } } }} />
+                    <Line
+                        ref={lineChartRef}
+                        data={flowChartData}
+                        options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            scales: {
+                                y: {
+                                    ticks: { color: '#8b949e' },
+                                    grid: { color: '#30363d' }
+                                },
+                                x: {
+                                    ticks: { color: '#8b949e', maxRotation: 45 },
+                                    grid: { display: false }
+                                }
+                            },
+                            plugins: {
+                                legend: { labels: { color: '#e6edf3' } },
+                                tooltip: {
+                                    ...enhancedTooltip,
+                                    callbacks: {
+                                        title: (items) => `Equipment: ${items[0].label}`,
+                                        afterBody: (items) => {
+                                            const index = items[0].dataIndex;
+                                            const equipment = processed_data[index];
+                                            if (equipment) {
+                                                return [
+                                                    '',
+                                                    `Type: ${equipment['Type']}`,
+                                                    `Pressure: ${equipment['Pressure']?.toFixed(2)}`,
+                                                    `Health: ${equipment['health_status']?.toUpperCase() || 'N/A'}`
+                                                ];
+                                            }
+                                            return [];
+                                        }
+                                    }
+                                },
+                                zoom: zoomOptions
+                            }
+                        }}
+                    />
                 </div>
             </div>
 

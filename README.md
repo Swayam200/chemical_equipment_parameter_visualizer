@@ -2,17 +2,29 @@
 
 A hybrid Web and Desktop application for analyzing chemical equipment data with advanced analytics, outlier detection, and health status monitoring.
 
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Python](https://img.shields.io/badge/python-3.8+-green)
+![React](https://img.shields.io/badge/react-18-blue)
+![Django](https://img.shields.io/badge/django-5.0-green)
+
 ## 📋 Project Structure
 
-- **`backend/`** - Django REST Framework API with JWT authentication
-- **`web-frontend/`** - React + Vite + Chart.js web application
-- **`desktop-frontend/`** - PyQt5 + Matplotlib desktop application
+```
+├── backend/           # Django REST Framework API
+├── web-frontend/      # React + Vite + Chart.js web app
+└── desktop-frontend/  # PyQt5 + Matplotlib desktop app
+```
 
-📖 **Detailed Documentation:**
+**📖 Detailed Documentation:**
 
-- [Web Frontend README](web-frontend/README.md) - Analytics features, health status logic, threshold configuration
-- [Desktop Frontend README](desktop-frontend/README.md) - UI features, visualization details, platform notes
-- [Backend README](backend/README.md) - Admin panel, user management, database operations
+| Component | Description |
+|-----------|-------------|
+| [Backend README](backend/README.md) | API endpoints, admin panel, threshold configuration |
+| [Web Frontend README](web-frontend/README.md) | Features, user guide, chart interactions |
+| [Desktop Frontend README](desktop-frontend/README.md) | Features, toolbar usage, platform notes |
+| [Threshold Configuration](backend/threshold_config.md) | In-depth threshold customization guide |
+
+---
 
 ## ⚡ Quick Start
 
@@ -63,267 +75,133 @@ Web app runs at: **http://localhost:5173**
 
 ### 3. Desktop App Setup
 
-Ensure backend is running first:
-
 ```bash
 cd desktop-frontend
-pip install -r requirements.txt  # PyQt5, matplotlib, requests, numpy
+pip install -r requirements.txt
 python main.py
 ```
 
-## 🎯 Core Features
+---
+
+## 🎯 Key Features
 
 ### User Authentication
-
-- **Register**: Create account with username, email, password (8+ characters)
-- **Login**: JWT token-based authentication
-- **Per-User Data**: Uploads isolated by user account
+- JWT-based authentication with automatic token refresh
+- Register/Login with form validation
+- Per-user data isolation
 
 ### Data Analysis
-
-- **CSV Upload**: Drag & drop (web) or file dialog (desktop)
-- **Real-Time Processing**: Pandas-based statistical analysis
+- **CSV Upload**: Drag & drop with 5 MB limit, progress bar
+- **Real-time Processing**: Pandas-based statistical analysis
 - **5 Advanced Analytics**:
-  1. **Outlier Detection** - IQR method with customizable thresholds
-  2. **Type Comparison** - Compare parameters across equipment types
-  3. **Correlation Matrix** - Identify parameter relationships
-  4. **Enhanced Statistics** - Min/Max/StdDev for all parameters
-  5. **Health Status** - Color-coded equipment condition (Normal/Warning/Critical)
+  1. Outlier Detection (IQR method)
+  2. Type Comparison Charts
+  3. Correlation Matrix
+  4. Enhanced Statistics
+  5. Health Status Classification
 
-### Visualizations
+### Interactive Visualizations
+- **Web**: Chart.js with zoom/pan, enhanced tooltips
+- **Desktop**: Matplotlib with navigation toolbar
+- **PDF Reports**: Professional styled reports with charts
 
-- **Dashboard**: Interactive charts (Chart.js/Matplotlib)
-- **Upload History**: Last 5 uploads with click-to-load
-- **PDF Reports**: Generate downloadable analysis reports (web only)
+### Health Status System
 
-## 🩺 Health Status System
+| Status | Color | Criteria |
+|--------|-------|----------|
+| 🟢 Normal | Green | Parameters within normal range |
+| 🟡 Warning | Yellow | Parameters above 75th percentile |
+| 🔴 Critical | Red | Parameters are statistical outliers |
 
-Equipment classified into 3 categories:
-
-| Status          | Color  | Criteria                                           |
-| --------------- | ------ | -------------------------------------------------- |
-| 🟢 **Normal**   | Green  | Parameters within normal range (< 75th percentile) |
-| 🟡 **Warning**  | Yellow | Parameters in upper 25% (> 75th percentile)        |
-| 🔴 **Critical** | Red    | Parameters are statistical outliers (IQR method)   |
-
-**Thresholds:**
-
-- **Warning**: 75th percentile (top 25% of values)
-- **Critical**: IQR outliers (1.5 × IQR beyond Q1/Q3)
-
-**Customization:** See [Web Frontend README](web-frontend/README.md#health-status-threshold-configuration) for details on making thresholds admin-configurable.
+---
 
 ## 🔧 Configuration
 
-## 🔧 Configuration
+### Analytics Thresholds
 
-### Environment Variables (`backend/.env`)
+Edit `backend/.env`:
 
 ```env
-# Django Settings
-DEBUG=True
-SECRET_KEY=your-secret-key-here
-ALLOWED_HOSTS=127.0.0.1,localhost
+# Warning: Top 25% get yellow status (0.5 - 0.95)
+WARNING_PERCENTILE=0.75
 
-# CORS
-CORS_ALLOWED_ORIGINS=http://localhost:5173
-
-# Admin Credentials
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=your_secure_password
-ADMIN_EMAIL=admin@example.com
+# Critical: Standard outlier detection (0.5 - 3.0)
+OUTLIER_IQR_MULTIPLIER=1.5
 ```
 
-### Admin Panel Access
+**Note:** Restart backend after changes. Old uploads auto-recalculate with new thresholds!
+
+See [Threshold Configuration Guide](backend/threshold_config.md) for detailed examples.
+
+### Admin Panel
 
 Visit: **http://127.0.0.1:8000/admin/**
 
-Use credentials from `.env` file to:
+Use credentials from `.env` to manage users and uploads.
 
-- View all registered users
-- Manage uploads
-- Monitor system activity
+---
 
-**Change admin password:** Edit `.env` and run `python manage.py initadmin`
+## 📊 API Endpoints
 
-## 📊 Analytics Details
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/register/` | No | Create account |
+| POST | `/api/login/` | No | Get JWT tokens |
+| POST | `/api/token/refresh/` | No | Refresh token |
+| POST | `/api/upload/` | Yes | Upload CSV |
+| GET | `/api/history/` | Yes | Last 5 uploads |
+| GET | `/api/report/<id>/` | Yes | Download PDF |
 
-### Outlier Detection (IQR Method)
+**Auth Header:** `Authorization: Bearer <token>`
 
-```
-Q1 = 25th percentile
-Q3 = 75th percentile
-IQR = Q3 - Q1
-Lower Bound = Q1 - 1.5 × IQR
-Upper Bound = Q3 + 1.5 × IQR
-```
+---
 
-Values outside bounds are flagged as outliers (Critical status).
-
-### Correlation Analysis
-
-Pearson correlation coefficient (-1 to +1) shows relationships:
-
-- **+1**: Perfect positive correlation
-- **0**: No correlation
-- **-1**: Perfect negative correlation
-
-### Type Comparison
-
-Groups equipment by type and calculates mean Flowrate, Pressure, Temperature for each category.
-
-**For detailed analytics documentation and threshold customization, see:**
-
-- [Web Frontend README - Health Status Configuration](web-frontend/README.md#health-status-threshold-configuration)
-- [Desktop Frontend README - Health Status Logic](desktop-frontend/README.md#health-status-logic)
-
-## 🗂️ API Endpoints
-
-| Method | Endpoint             | Auth | Description                      |
-| ------ | -------------------- | ---- | -------------------------------- |
-| POST   | `/api/register/`     | No   | Create new user account          |
-| POST   | `/api/login/`        | No   | Authenticate and get JWT tokens  |
-| POST   | `/api/upload/`       | Yes  | Upload CSV file for analysis     |
-| GET    | `/api/history/`      | Yes  | Get last 5 uploads (user-scoped) |
-| GET    | `/api/uploads/<id>/` | Yes  | Get specific upload details      |
-| GET    | `/api/report/<id>/`  | Yes  | Generate PDF report              |
-
-**Authentication:** Include JWT token in header:
-
-```
-Authorization: Bearer <access_token>
-```
-
-## 🧪 Testing with Sample Data
-
-Sample CSV format (`sample_equipment_data.csv`):
+## 🧪 Sample Data Format
 
 ```csv
 Equipment Name,Type,Flowrate,Pressure,Temperature
 Pump-001,Pump,45.2,150.5,75.3
 Reactor-A1,Reactor,120.0,300.0,185.0
-...
 ```
 
 **Required columns:**
-
 - Equipment Name (string)
 - Type (string)
-- Flowrate (float)
-- Pressure (float)
-- Temperature (float)
+- Flowrate, Pressure, Temperature (numeric)
 
-## 📦 Project Dependencies
-
-### Backend
-
-- Django 6.0.1
-- Django REST Framework
-- djangorestframework-simplejwt
-- pandas
-- reportlab
-- python-dotenv
-- django-cors-headers
-
-### Web Frontend
-
-- React 18
-- Vite
-- Chart.js
-- Axios
-
-### Desktop Frontend
-
-- PyQt5
-- Matplotlib
-- Requests
-- NumPy
-
-## 🔄 Database Management
-
-### Reset Database (Clear all data)
-
-```bash
-cd backend
-rm db.sqlite3
-rm -rf media/uploads/*
-python manage.py migrate
-python manage.py initadmin
-```
-
-### View Uploads
-
-- **Admin Panel**: http://127.0.0.1:8000/admin/ → "Uploaded files"
-- **Database**: SQLite browser on `db.sqlite3`
-
-## 🎨 UI Theme
-
-Both web and desktop use a consistent GitHub-inspired dark theme:
-
-| Element      | Hex Color          |
-| ------------ | ------------------ |
-| Background   | `#0d1117`          |
-| Cards/Panels | `#161b22`          |
-| Borders      | `#30363d`          |
-| Text         | `#c9d1d9`          |
-| Accent       | `#58a6ff` (blue)   |
-| Success      | `#238636` (green)  |
-| Warning      | `#f59e0b` (yellow) |
-| Error        | `#ef4444` (red)    |
+---
 
 ## 🐛 Troubleshooting
 
-### Backend Issues
+| Issue | Solution |
+|-------|----------|
+| Port 8000 in use | `lsof -ti:8000 | xargs kill -9` |
+| CORS errors | Check `CORS_ALLOWED_ORIGINS` in `.env` |
+| Charts not rendering | Check browser console / reinstall npm packages |
+| Desktop connection error | Ensure backend is running |
 
-**Port 8000 already in use:**
+See individual README files for detailed troubleshooting.
 
-```bash
-lsof -ti:8000 | xargs kill -9  # macOS/Linux
-# Or change port: python manage.py runserver 8001
-```
+---
 
-**Migration errors:**
+## 📦 Tech Stack
 
-```bash
-python manage.py migrate --run-syncdb
-```
+### Backend
+- Django 5.0 + REST Framework
+- SimpleJWT authentication
+- Pandas, ReportLab, Matplotlib
 
-### Web Frontend Issues
+### Web Frontend
+- React 18 + Vite
+- Chart.js with zoom plugin
+- Axios with auto-refresh
 
-**CORS errors:**
+### Desktop Frontend
+- PyQt5
+- Matplotlib with interactive toolbar
+- Requests
 
-- Check `CORS_ALLOWED_ORIGINS` in `backend/.env` includes `http://localhost:5173`
-- Restart backend after `.env` changes
-
-**Charts not rendering:**
-
-- Check browser console for errors
-- Ensure Chart.js loaded: `npm list chart.js`
-
-### Desktop App Issues
-
-**"Could not connect to server":**
-
-- Ensure backend running on http://127.0.0.1:8000
-- Check firewall settings
-
-**PyQt5 import error:**
-
-```bash
-pip install --upgrade PyQt5
-# macOS: May need system Python or brew install
-```
-
-**Matplotlib display issues:**
-
-```bash
-# macOS: Set backend
-export MPLBACKEND=Qt5Agg
-```
-
-## 📝 License
-
-This project is developed as part of the FOSSEE internship screening task.
+---
 
 ## 🤝 Contributing
 
@@ -333,11 +211,13 @@ This project is developed as part of the FOSSEE internship screening task.
 4. Push to the branch
 5. Open a Pull Request
 
-## 📧 Contact
+---
 
-For questions or issues, please open an issue on GitHub.
+## 📝 License
+
+Developed as part of the FOSSEE internship screening task.
 
 ---
 
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Last Updated:** January 2026
