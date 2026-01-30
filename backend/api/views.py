@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
-from .models import UploadedFile
+from .models import UploadedFile, UserThresholdSettings
 from .serializers import UploadedFileSerializer
 import pandas as pd
 import os
@@ -24,15 +24,26 @@ import numpy as np
 from io import BytesIO
 from datetime import datetime
 
-def get_threshold_settings():
+def get_threshold_settings(user=None):
     """
-    Get threshold settings from .env with safe fallbacks.
+    Get threshold settings with priority:
+    1. User's custom settings (if exists in database)
+    2. .env file settings
+    3. Hardcoded defaults (0.75, 1.5)
+    
     Returns: (warning_percentile, outlier_iqr_multiplier)
-    Defaults to (0.75, 1.5) if not set or invalid.
     """
+    # Check for user-specific settings first
+    if user:
+        try:
+            settings = UserThresholdSettings.objects.get(user=user)
+            return settings.warning_percentile, settings.outlier_iqr_multiplier
+        except UserThresholdSettings.DoesNotExist:
+            pass  # Fall through to .env defaults
+    
+    # Existing .env logic as fallback
     try:
         warning = float(os.getenv('WARNING_PERCENTILE', '0.75'))
-        # Validate range
         if not (0.5 <= warning <= 0.95):
             warning = 0.75
     except (ValueError, TypeError):
@@ -40,7 +51,6 @@ def get_threshold_settings():
     
     try:
         outlier = float(os.getenv('OUTLIER_IQR_MULTIPLIER', '1.5'))
-        # Validate range
         if not (0.5 <= outlier <= 3.0):
             outlier = 1.5
     except (ValueError, TypeError):
@@ -125,20 +135,91 @@ class LoginView(APIView):
 
 class ThresholdSettingsView(APIView):
     """
-    API endpoint to retrieve current threshold configuration.
-    Returns the WARNING_PERCENTILE and OUTLIER_IQR_MULTIPLIER settings.
+    API endpoint to retrieve and update threshold configuration.
+    GET: Returns current effective settings (user's custom or defaults)
+    PUT: Create or update user's custom settings
+    DELETE: Reset to defaults (remove custom settings)
     """
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        warning_percentile, iqr_multiplier = get_threshold_settings()
+        """Get user's effective threshold settings."""
+        # Check if user has custom settings
+        is_custom = UserThresholdSettings.objects.filter(user=request.user).exists()
+        warning_percentile, iqr_multiplier = get_threshold_settings(request.user)
+        
         return Response({
             'warning_percentile': warning_percentile,
             'outlier_iqr_multiplier': iqr_multiplier,
+            'is_custom': is_custom,
             'description': {
                 'warning_percentile': f'Equipment with parameters above the {int(warning_percentile * 100)}th percentile are marked as Warning',
                 'outlier_iqr_multiplier': f'Values beyond Q3 + {iqr_multiplier} × IQR are marked as outliers (Critical)'
             }
+        }, status=status.HTTP_200_OK)
+    
+    def put(self, request):
+        """Create or update user's custom threshold settings."""
+        warning_percentile = request.data.get('warning_percentile')
+        iqr_multiplier = request.data.get('outlier_iqr_multiplier')
+        
+        # Validate inputs
+        errors = {}
+        if warning_percentile is not None:
+            try:
+                warning_percentile = float(warning_percentile)
+                if not (0.5 <= warning_percentile <= 0.95):
+                    errors['warning_percentile'] = 'Must be between 0.50 and 0.95'
+            except (ValueError, TypeError):
+                errors['warning_percentile'] = 'Must be a valid number'
+        
+        if iqr_multiplier is not None:
+            try:
+                iqr_multiplier = float(iqr_multiplier)
+                if not (0.5 <= iqr_multiplier <= 3.0):
+                    errors['outlier_iqr_multiplier'] = 'Must be between 0.5 and 3.0'
+            except (ValueError, TypeError):
+                errors['outlier_iqr_multiplier'] = 'Must be a valid number'
+        
+        if errors:
+            return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get or create user's settings
+        settings, created = UserThresholdSettings.objects.get_or_create(
+            user=request.user,
+            defaults={
+                'warning_percentile': warning_percentile or 0.75,
+                'outlier_iqr_multiplier': iqr_multiplier or 1.5
+            }
+        )
+        
+        # Update if not created
+        if not created:
+            if warning_percentile is not None:
+                settings.warning_percentile = warning_percentile
+            if iqr_multiplier is not None:
+                settings.outlier_iqr_multiplier = iqr_multiplier
+            settings.save()
+        
+        return Response({
+            'warning_percentile': settings.warning_percentile,
+            'outlier_iqr_multiplier': settings.outlier_iqr_multiplier,
+            'is_custom': True,
+            'message': 'Settings saved successfully'
+        }, status=status.HTTP_200_OK)
+    
+    def delete(self, request):
+        """Reset to defaults by removing custom settings."""
+        deleted, _ = UserThresholdSettings.objects.filter(user=request.user).delete()
+        
+        # Get the default settings to return
+        warning_percentile, iqr_multiplier = get_threshold_settings()
+        
+        return Response({
+            'warning_percentile': warning_percentile,
+            'outlier_iqr_multiplier': iqr_multiplier,
+            'is_custom': False,
+            'message': 'Settings reset to defaults' if deleted else 'Already using defaults'
         }, status=status.HTTP_200_OK)
 
 class FileUploadView(APIView):
@@ -208,8 +289,8 @@ class FileUploadView(APIView):
             stats['correlation_matrix'] = correlation_matrix
             
             # 4. Outlier Detection (using IQR method)
-            # Get configurable thresholds from .env
-            warning_percentile, iqr_multiplier = get_threshold_settings()
+            # Get configurable thresholds - user's custom or defaults
+            warning_percentile, iqr_multiplier = get_threshold_settings(request.user)
             
             outliers = []
             for col in numeric_cols:

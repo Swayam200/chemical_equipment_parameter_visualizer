@@ -3,6 +3,39 @@ from .models import UploadedFile
 import pandas as pd
 import os
 
+# Import the helper function from views
+def get_threshold_settings_for_serializer(user=None):
+    """
+    Get threshold settings with priority:
+    1. User's custom settings (if exists in database)
+    2. .env file settings
+    3. Hardcoded defaults (0.75, 1.5)
+    """
+    if user:
+        try:
+            from .models import UserThresholdSettings
+            settings = UserThresholdSettings.objects.get(user=user)
+            return settings.warning_percentile, settings.outlier_iqr_multiplier
+        except:
+            pass  # Fall through to defaults
+    
+    # Existing .env logic as fallback
+    try:
+        warning = float(os.getenv('WARNING_PERCENTILE', '0.75'))
+        if not (0.5 <= warning <= 0.95):
+            warning = 0.75
+    except (ValueError, TypeError):
+        warning = 0.75
+    
+    try:
+        outlier = float(os.getenv('OUTLIER_IQR_MULTIPLIER', '1.5'))
+        if not (0.5 <= outlier <= 3.0):
+            outlier = 1.5
+    except (ValueError, TypeError):
+        outlier = 1.5
+    
+    return warning, outlier
+
 class UploadedFileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     
@@ -18,20 +51,12 @@ class UploadedFileSerializer(serializers.ModelSerializer):
         """
         representation = super().to_representation(instance)
         
-        # Get current thresholds from .env
-        try:
-            warning_percentile = float(os.getenv('WARNING_PERCENTILE', '0.75'))
-            if not (0.5 <= warning_percentile <= 0.95):
-                warning_percentile = 0.75
-        except (ValueError, TypeError):
-            warning_percentile = 0.75
+        # Get user from request context (if available) for per-user thresholds
+        request = self.context.get('request')
+        user = request.user if request and hasattr(request, 'user') else instance.user
         
-        try:
-            iqr_multiplier = float(os.getenv('OUTLIER_IQR_MULTIPLIER', '1.5'))
-            if not (0.5 <= iqr_multiplier <= 3.0):
-                iqr_multiplier = 1.5
-        except (ValueError, TypeError):
-            iqr_multiplier = 1.5
+        # Get current thresholds for this user
+        warning_percentile, iqr_multiplier = get_threshold_settings_for_serializer(user)
         
         # Recalculate health status if file exists
         try:

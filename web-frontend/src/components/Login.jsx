@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { FaLock, FaUserPlus } from 'react-icons/fa';
+import { FaLock, FaUserPlus, FaSun, FaMoon } from 'react-icons/fa';
 import api from '../api';
 import loginBg from '../assets/images/chemical_plant_login.jpg';
 
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, theme, toggleTheme }) => {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -94,17 +94,47 @@ const Login = ({ onLogin }) => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundImage: `linear-gradient(rgba(11, 12, 16, 0.8), rgba(11, 12, 16, 0.9)), url(${loginBg})`,
+      backgroundImage: theme === 'light'
+        ? `linear-gradient(rgba(240, 244, 248, 0.85), rgba(240, 244, 248, 0.92)), url(${loginBg})`
+        : `linear-gradient(rgba(11, 12, 16, 0.8), rgba(11, 12, 16, 0.9)), url(${loginBg})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
-      backgroundAttachment: 'fixed'
+      backgroundAttachment: 'fixed',
+      position: 'relative'
     }}>
+      {/* Theme Toggle Button */}
+      {toggleTheme && (
+        <button
+          onClick={toggleTheme}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--card-bg)',
+            border: '1px solid var(--accent-color)',
+            color: 'var(--accent-color)',
+            width: '42px',
+            height: '42px',
+            borderRadius: '2px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            backdropFilter: 'blur(8px)'
+          }}
+        >
+          {theme === 'dark' ? <FaSun size={18} /> : <FaMoon size={18} />}
+        </button>
+      )}
+
       <div className="glass-card" style={{
         width: '400px',
         textAlign: 'center',
         padding: '32px',
         border: '1px solid var(--accent-color)',
-        boxShadow: '0 0 20px rgba(69, 162, 158, 0.15)'
+        boxShadow: 'var(--card-hover-shadow)'
       }}>
         <div style={{ marginBottom: '24px', color: 'var(--accent-color)' }}>
           {isRegisterMode ? <FaUserPlus size={48} /> : <FaLock size={48} />}
@@ -115,7 +145,7 @@ const Login = ({ onLogin }) => {
           marginBottom: '8px',
           borderLeft: 'none',
           paddingLeft: 0,
-          textShadow: '0 0 10px rgba(102, 252, 241, 0.4)'
+          textShadow: `0 0 10px var(--glow-color)`
         }}>
           {isRegisterMode ? 'INITIATE ACCESS' : 'SYSTEM LOGIN'}
         </h2>
@@ -142,7 +172,7 @@ const Login = ({ onLogin }) => {
               style={{
                 width: '100%',
                 padding: '14px',
-                background: 'rgba(11, 12, 16, 0.8)',
+                background: 'var(--input-bg)',
                 boxSizing: 'border-box'
               }}
             />
@@ -158,7 +188,7 @@ const Login = ({ onLogin }) => {
                 style={{
                   width: '100%',
                   padding: '14px',
-                  background: 'rgba(11, 12, 16, 0.8)',
+                  background: 'var(--input-bg)',
                   boxSizing: 'border-box'
                 }}
               />
@@ -174,7 +204,7 @@ const Login = ({ onLogin }) => {
               style={{
                 width: '100%',
                 padding: '14px',
-                background: 'rgba(11, 12, 16, 0.8)',
+                background: 'var(--input-bg)',
                 boxSizing: 'border-box'
               }}
             />
@@ -190,7 +220,7 @@ const Login = ({ onLogin }) => {
                 style={{
                   width: '100%',
                   padding: '14px',
-                  background: 'rgba(11, 12, 16, 0.8)',
+                  background: 'var(--input-bg)',
                   boxSizing: 'border-box'
                 }}
               />

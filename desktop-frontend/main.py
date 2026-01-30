@@ -6,7 +6,7 @@ from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QFileDialog, 
                              QTabWidget, QTableWidget, QTableWidgetItem, QMessageBox, QListWidget, QSplitter, 
-                             QDialog, QLineEdit, QFormLayout, QProgressDialog, QScrollArea, QGroupBox)
+                             QDialog, QLineEdit, QFormLayout, QProgressDialog, QScrollArea, QGroupBox, QSlider)
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QColor
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -609,8 +609,8 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(self.advanced_group)
         
-        # 6. System Thresholds (Collapsible, at bottom)
-        self.threshold_group = QGroupBox("System Thresholds (Click to expand)")
+        # 6. Threshold Settings (Collapsible, Editable)
+        self.threshold_group = QGroupBox("Threshold Settings (Click to expand)")
         self.threshold_group.setCheckable(True)
         self.threshold_group.setChecked(False)
         self.threshold_group.setStyleSheet("""
@@ -632,16 +632,107 @@ class MainWindow(QMainWindow):
         """)
         
         threshold_layout = QVBoxLayout()
-        self.threshold_label = QLabel("Loading settings...")
-        self.threshold_label.setStyleSheet("color: #c5c6c7; padding: 10px; background-color: #0b0c10; font-size: 11px; font-family: monospace;")
-        self.threshold_label.setWordWrap(True)
-        threshold_layout.addWidget(self.threshold_label)
+        
+        # Container for all threshold content (hidden initially)
+        self.threshold_content = QWidget()
+        threshold_content_layout = QVBoxLayout(self.threshold_content)
+        
+        # Status label (CUSTOM badge)
+        self.threshold_status_label = QLabel("")
+        self.threshold_status_label.setStyleSheet("color: #45a29e; font-size: 12px; margin-bottom: 8px;")
+        threshold_content_layout.addWidget(self.threshold_status_label)
+        
+        # Warning Percentile Slider
+        warning_layout = QHBoxLayout()
+        warning_label = QLabel("<b style='color: #e0a800;'>Warning Level:</b>")
+        warning_label.setStyleSheet("color: #e0a800; min-width: 120px;")
+        self.warning_slider = QSlider(Qt.Horizontal)
+        self.warning_slider.setMinimum(50)
+        self.warning_slider.setMaximum(95)
+        self.warning_slider.setValue(75)
+        self.warning_slider.setTickInterval(5)
+        self.warning_slider.setStyleSheet("""
+            QSlider::groove:horizontal { background: #1f2833; height: 8px; border-radius: 4px; }
+            QSlider::handle:horizontal { background: #e0a800; width: 16px; margin: -4px 0; border-radius: 8px; }
+            QSlider::sub-page:horizontal { background: #e0a800; border-radius: 4px; }
+        """)
+        self.warning_value_label = QLabel("75th %ile")
+        self.warning_value_label.setStyleSheet("color: #e0a800; min-width: 80px; font-weight: bold;")
+        self.warning_slider.valueChanged.connect(lambda v: self.warning_value_label.setText(f"{v}th %ile"))
+        warning_layout.addWidget(warning_label)
+        warning_layout.addWidget(self.warning_slider)
+        warning_layout.addWidget(self.warning_value_label)
+        threshold_content_layout.addLayout(warning_layout)
+        
+        warning_desc = QLabel("<span style='color: #8b949e;'>Equipment above this percentile → ⚠️ Warning</span>")
+        warning_desc.setStyleSheet("margin-left: 130px; font-size: 10px;")
+        threshold_content_layout.addWidget(warning_desc)
+        
+        # IQR Multiplier Slider
+        iqr_layout = QHBoxLayout()
+        iqr_label = QLabel("<b style='color: #fc2044;'>Critical Level:</b>")
+        iqr_label.setStyleSheet("color: #fc2044; min-width: 120px;")
+        self.iqr_slider = QSlider(Qt.Horizontal)
+        self.iqr_slider.setMinimum(5)  # 0.5
+        self.iqr_slider.setMaximum(30)  # 3.0
+        self.iqr_slider.setValue(15)  # 1.5
+        self.iqr_slider.setTickInterval(5)
+        self.iqr_slider.setStyleSheet("""
+            QSlider::groove:horizontal { background: #1f2833; height: 8px; border-radius: 4px; }
+            QSlider::handle:horizontal { background: #fc2044; width: 16px; margin: -4px 0; border-radius: 8px; }
+            QSlider::sub-page:horizontal { background: #fc2044; border-radius: 4px; }
+        """)
+        self.iqr_value_label = QLabel("1.5× IQR")
+        self.iqr_value_label.setStyleSheet("color: #fc2044; min-width: 80px; font-weight: bold;")
+        self.iqr_slider.valueChanged.connect(lambda v: self.iqr_value_label.setText(f"{v/10:.1f}× IQR"))
+        iqr_layout.addWidget(iqr_label)
+        iqr_layout.addWidget(self.iqr_slider)
+        iqr_layout.addWidget(self.iqr_value_label)
+        threshold_content_layout.addLayout(iqr_layout)
+        
+        iqr_desc = QLabel("<span style='color: #8b949e;'>Values beyond Q3 + multiplier × IQR → 🔴 Critical</span>")
+        iqr_desc.setStyleSheet("margin-left: 130px; font-size: 10px;")
+        threshold_content_layout.addWidget(iqr_desc)
+        
+        # Buttons row
+        btn_layout = QHBoxLayout()
+        self.save_threshold_btn = QPushButton("💾 Save Settings")
+        self.save_threshold_btn.setStyleSheet("""
+            QPushButton { background-color: #45a29e; color: #0b0c10; padding: 8px 16px; border-radius: 2px; font-weight: bold; }
+            QPushButton:hover { background-color: #66fcf1; }
+            QPushButton:disabled { background-color: #1f2833; color: #8b949e; }
+        """)
+        self.save_threshold_btn.clicked.connect(self.save_threshold_settings)
+        
+        self.reset_threshold_btn = QPushButton("↻ Reset to Defaults")
+        self.reset_threshold_btn.setStyleSheet("""
+            QPushButton { background-color: transparent; color: #8b949e; padding: 8px 16px; border: 1px solid #1f2833; border-radius: 2px; }
+            QPushButton:hover { background-color: #1f2833; color: #c5c6c7; }
+            QPushButton:disabled { color: #45a29e; }
+        """)
+        self.reset_threshold_btn.clicked.connect(self.reset_threshold_settings)
+        
+        self.threshold_msg_label = QLabel("")
+        self.threshold_msg_label.setStyleSheet("margin-left: 10px;")
+        
+        btn_layout.addWidget(self.save_threshold_btn)
+        btn_layout.addWidget(self.reset_threshold_btn)
+        btn_layout.addWidget(self.threshold_msg_label)
+        btn_layout.addStretch()
+        threshold_content_layout.addLayout(btn_layout)
+        
+        # Info note
+        info_label = QLabel("💡 <span style='color: #8b949e;'>Changes apply to all your uploads. Existing data recalculates on view.</span>")
+        info_label.setStyleSheet("margin-top: 8px; font-size: 10px;")
+        threshold_content_layout.addWidget(info_label)
+        
+        threshold_layout.addWidget(self.threshold_content)
+        self.threshold_content.setVisible(False)
         
         self.threshold_group.setLayout(threshold_layout)
         
         # Connect toggle signal
         self.threshold_group.toggled.connect(self.toggle_thresholds)
-        self.threshold_label.setVisible(False)
         
         layout.addWidget(self.threshold_group)
 
@@ -686,31 +777,87 @@ class MainWindow(QMainWindow):
             res = requests.get(f"{API_URL}thresholds/", headers=self.get_headers())
             if res.status_code == 200:
                 self.threshold_settings = res.json()
-                # Update display if UI is ready
-                if hasattr(self, 'threshold_label'):
-                    self.update_threshold_display()
+                self.update_threshold_display()
         except Exception as e:
             print(f"Error fetching threshold settings: {e}")
             self.threshold_settings = None
 
     def update_threshold_display(self):
-        """Updates the threshold configuration display."""
+        """Updates the threshold sliders and status from fetched settings."""
         if self.threshold_settings:
             warning = self.threshold_settings['warning_percentile']
             iqr = self.threshold_settings['outlier_iqr_multiplier']
+            is_custom = self.threshold_settings.get('is_custom', False)
             
-            threshold_text = (
-                f"<b style='color: #45a29e;'>ANALYSIS THRESHOLDS [ACTIVE]:</b><br><br>"
-                f"<b>Warning Lvl:</b> {int(warning * 100)}th <span style='color: #c5c6c7'>percentile</span><br>"
-                f"<span style='color: #8b949e;'>[!] Parameters exceeding this level flagged as WARNING</span><br><br>"
-                f"<b>Critical Lvl:</b> Q3 + {iqr} × IQR<br>"
-                f"<span style='color: #8b949e;'>[!] Values beyond this range marked as CRITICAL OUTLIERS</span>"
+            # Update sliders (blocking signals to prevent triggering change events)
+            self.warning_slider.blockSignals(True)
+            self.warning_slider.setValue(int(warning * 100))
+            self.warning_slider.blockSignals(False)
+            self.warning_value_label.setText(f"{int(warning * 100)}th %ile")
+            
+            self.iqr_slider.blockSignals(True)
+            self.iqr_slider.setValue(int(iqr * 10))
+            self.iqr_slider.blockSignals(False)
+            self.iqr_value_label.setText(f"{iqr:.1f}× IQR")
+            
+            # Update status label
+            if is_custom:
+                self.threshold_status_label.setText("<b style='color: #66fcf1;'>[CUSTOM SETTINGS ACTIVE]</b>")
+                self.reset_threshold_btn.setEnabled(True)
+            else:
+                self.threshold_status_label.setText("<span style='color: #8b949e;'>Using default settings</span>")
+                self.reset_threshold_btn.setEnabled(False)
+
+    def save_threshold_settings(self):
+        """Saves custom threshold settings to backend."""
+        warning = self.warning_slider.value() / 100.0
+        iqr = self.iqr_slider.value() / 10.0
+        
+        self.save_threshold_btn.setEnabled(False)
+        self.threshold_msg_label.setText("<span style='color: #8b949e;'>Saving...</span>")
+        QApplication.processEvents()
+        
+        try:
+            res = requests.put(
+                f"{API_URL}thresholds/",
+                json={'warning_percentile': warning, 'outlier_iqr_multiplier': iqr},
+                headers={**self.get_headers(), 'Content-Type': 'application/json'}
             )
-            self.threshold_label.setText(threshold_text)
-        else:
-            self.threshold_label.setText(
-                "<span style='color: #ef4444;'>Unable to load threshold settings</span>"
-            )
+            if res.status_code == 200:
+                self.threshold_settings = res.json()
+                self.update_threshold_display()
+                self.threshold_msg_label.setText("<span style='color: #20fc8f;'>✓ Saved!</span>")
+                # Refresh current data if any
+                if self.current_data:
+                    self.load_history_item(self.history_list.currentItem())
+            else:
+                self.threshold_msg_label.setText(f"<span style='color: #fc2044;'>✗ Error: {res.status_code}</span>")
+        except Exception as e:
+            self.threshold_msg_label.setText(f"<span style='color: #fc2044;'>✗ {str(e)[:30]}</span>")
+        finally:
+            self.save_threshold_btn.setEnabled(True)
+
+    def reset_threshold_settings(self):
+        """Resets threshold settings to defaults."""
+        self.reset_threshold_btn.setEnabled(False)
+        self.threshold_msg_label.setText("<span style='color: #8b949e;'>Resetting...</span>")
+        QApplication.processEvents()
+        
+        try:
+            res = requests.delete(f"{API_URL}thresholds/", headers=self.get_headers())
+            if res.status_code == 200:
+                self.threshold_settings = res.json()
+                self.update_threshold_display()
+                self.threshold_msg_label.setText("<span style='color: #20fc8f;'>✓ Reset to defaults!</span>")
+                if self.current_data:
+                    self.load_history_item(self.history_list.currentItem())
+            else:
+                self.threshold_msg_label.setText(f"<span style='color: #fc2044;'>✗ Error: {res.status_code}</span>")
+        except Exception as e:
+            self.threshold_msg_label.setText(f"<span style='color: #fc2044;'>✗ {str(e)[:30]}</span>")
+        finally:
+            self.reset_threshold_btn.setEnabled(True)
+
 
     def refresh_history(self):
         """Fetches the last 5 uploads from the backend."""
@@ -851,7 +998,7 @@ class MainWindow(QMainWindow):
 
     def toggle_thresholds(self, checked):
         """Show/hide threshold content when toggled."""
-        self.threshold_label.setVisible(checked)
+        self.threshold_content.setVisible(checked)
 
     def update_ui(self, data):
         """Updates the dashboard and table with new data and advanced analytics."""

@@ -3,14 +3,26 @@ import HistorySidebar from './components/HistorySidebar';
 import FileUpload from './components/FileUpload';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
+import { DashboardSkeleton } from './components/Skeleton';
 import api from './api';
-import { FaSignOutAlt, FaUser } from 'react-icons/fa';
+import { FaSignOutAlt, FaUser, FaSun, FaMoon } from 'react-icons/fa';
 
 function App() {
   const [currentData, setCurrentData] = useState(null);
   const [refreshHistory, setRefreshHistory] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
+  const [theme, setTheme] = useState(() => {
+    // Check localStorage first, default to dark mode
+    const saved = localStorage.getItem('theme');
+    return saved || 'dark';
+  });
+
+  // Apply theme to document
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -22,6 +34,10 @@ function App() {
       if (storedUsername) setUsername(storedUsername);
     }
   }, []);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   const handleLoginSuccess = (user) => {
     // Login component already set localStorage
@@ -46,7 +62,7 @@ function App() {
   };
 
   if (!isAuthenticated) {
-    return <Login onLogin={handleLoginSuccess} />;
+    return <Login onLogin={handleLoginSuccess} theme={theme} toggleTheme={toggleTheme} />;
   }
 
   const handleUploadSuccess = (data) => {
@@ -73,7 +89,28 @@ function App() {
               Upload CSV data to analyze chemical equipment parameters.
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'transparent',
+                border: '1px solid var(--accent-color)',
+                color: 'var(--accent-color)',
+                width: '36px',
+                height: '36px',
+                borderRadius: '2px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {theme === 'dark' ? <FaSun size={16} /> : <FaMoon size={16} />}
+            </button>
+
             {username && (
               <span style={{
                 color: 'var(--text-secondary)',
@@ -105,7 +142,7 @@ function App() {
               }}
               onMouseEnter={(e) => {
                 e.target.style.background = 'var(--danger)';
-                e.target.style.color = '#0b0c10';
+                e.target.style.color = 'var(--bg-color)';
               }}
               onMouseLeave={(e) => {
                 e.target.style.background = 'transparent';
@@ -124,8 +161,20 @@ function App() {
         )}
 
         {!currentData && (
-          <div style={{ marginTop: '40px', textAlign: 'center', opacity: 0.5 }}>
-            <h3>No data selected. Upload a file or select from history.</h3>
+          <div style={{ marginTop: '24px' }}>
+            <div style={{
+              textAlign: 'center',
+              padding: '20px',
+              marginBottom: '24px',
+              background: 'var(--glass-border)',
+              border: '1px dashed var(--accent-color)',
+              borderRadius: '4px'
+            }}>
+              <h3 style={{ margin: 0, color: 'var(--text-muted)' }}>👆 Upload a CSV or select from history to view your dashboard</h3>
+            </div>
+            <div style={{ opacity: 0.4, pointerEvents: 'none' }}>
+              <DashboardSkeleton />
+            </div>
           </div>
         )}
       </main>
@@ -134,3 +183,4 @@ function App() {
 }
 
 export default App;
+
