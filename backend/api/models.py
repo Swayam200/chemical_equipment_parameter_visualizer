@@ -10,6 +10,7 @@ class UploadedFile(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     summary = models.JSONField(default=dict)  # Stores calculated stats
     processed_data = models.JSONField(default=list)  # Stores the parsed CSV rows
+    ai_summary_text = models.TextField(blank=True, null=True) # AI generated insights
     user_upload_index = models.PositiveIntegerField(blank=True, null=True, editable=False)
 
     def save(self, *args, **kwargs):

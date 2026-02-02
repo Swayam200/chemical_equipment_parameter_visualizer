@@ -7,10 +7,11 @@ from datetime import datetime
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QFileDialog, QTabWidget, QTableWidget, QTableWidgetItem, QMessageBox,
-    QListWidget, QSplitter, QScrollArea, QGroupBox, QSlider, QApplication
+    QListWidget, QSplitter, QScrollArea, QGroupBox, QSlider, QApplication,
+    QLineEdit, QComboBox, QCheckBox, QDialog, QTextBrowser
 )
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QColor
+from PyQt5.QtCore import Qt, QTimer, QSize
+from PyQt5.QtGui import QColor, QPixmap, QIcon
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -18,6 +19,8 @@ import numpy as np
 
 from ..api_client import ApiClient
 from .. import styles
+from ..ai_service import generate_ai_response
+from ..workers.ai_worker import AIWorker
 
 
 class MainWindow(QMainWindow):
@@ -44,6 +47,15 @@ class MainWindow(QMainWindow):
         self.current_data = None
         self.history_map = {}
         self.threshold_settings = None
+        
+        # View Settings
+        self.view_settings = {
+            'show_trends': True,
+            'show_correlation': True,
+            'show_efficiency': True, # Replaces 'Comparisons' in web
+            'show_table': True
+        }
+        self.table_filter = 'all' # all, normal, warning, critical
 
         self._setup_window()
         self._setup_ui()
@@ -52,8 +64,8 @@ class MainWindow(QMainWindow):
 
     def _setup_window(self) -> None:
         """Configure window properties."""
-        self.setWindowTitle("Chemical Equipment Visualizer (Desktop)")
-        self.resize(1200, 800)
+        self.setWindowTitle("Carbon Sleuth - Industrial Analytics (Desktop)")
+        self.resize(1280, 850)
 
     def _setup_ui(self) -> None:
         """Build the main window UI."""
@@ -78,11 +90,26 @@ class MainWindow(QMainWindow):
         layout.addWidget(splitter)
 
     def _create_sidebar(self) -> QWidget:
-        """Create the history sidebar."""
+        """Create the history sidebar with Logo."""
         sidebar_layout = QVBoxLayout()
+        
+        # LOGO
+        logo_label = QLabel()
+        logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'logo.png')
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path)
+            scaled_pixmap = pixmap.scaled(200, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            logo_label.setPixmap(scaled_pixmap)
+            logo_label.setAlignment(Qt.AlignCenter)
+            sidebar_layout.addWidget(logo_label)
+        else:
+             title = QLabel("Carbon Sleuth")
+             title.setStyleSheet("font-size: 18px; font-weight: bold; color: #66fcf1; margin-bottom: 10px;")
+             title.setAlignment(Qt.AlignCenter)
+             sidebar_layout.addWidget(title)
 
         header_label = QLabel("<b>Recent Uploads</b>")
-        header_label.setStyleSheet("color: #e6edf3; font-size: 14px; margin-bottom: 5px;")
+        header_label.setStyleSheet("color: #e6edf3; font-size: 14px; margin-top: 15px; margin-bottom: 5px;")
         sidebar_layout.addWidget(header_label)
 
         self.history_list = QListWidget()
@@ -91,7 +118,7 @@ class MainWindow(QMainWindow):
 
         sidebar_widget = QWidget()
         sidebar_widget.setLayout(sidebar_layout)
-        sidebar_widget.setFixedWidth(250)
+        sidebar_widget.setFixedWidth(260)
         sidebar_widget.setStyleSheet(styles.SIDEBAR_STYLE)
 
         return sidebar_widget
@@ -111,19 +138,38 @@ class MainWindow(QMainWindow):
 
         self._setup_dashboard_tab()
         self._setup_data_tab()
+        
+        # --- Prediction Tab ---
+        self.prediction_tab = QWidget()
+        self._setup_prediction_tab()
 
         self.tabs.addTab(self.dashboard_tab, "Dashboard")
         self.tabs.addTab(self.data_tab, "Raw Data")
+        self.tabs.addTab(self.prediction_tab, "🔮 Predictions")
         main_layout.addWidget(self.tabs)
 
         widget = QWidget()
         widget.setLayout(main_layout)
-        widget.setStyleSheet("background-color: #0b0c10;")
+        widget.setStyleSheet("background-color: #0b0c10;") # Dark theme
         return widget
 
     def _create_top_bar(self) -> QHBoxLayout:
-        """Create the top action bar."""
+        """Create the top action bar with Search and AI."""
         top_bar = QHBoxLayout()
+
+        # Search / AI Input
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Ask AI (e.g., 'Show me critical pumps' or 'Compare pressure')")
+        self.search_input.setStyleSheet("padding: 6px; border-radius: 4px; border: 1px solid #444c56; background: #0d1117; color: white; min-width: 300px;")
+        self.search_input.returnPressed.connect(self._handle_ai_query)
+        top_bar.addWidget(self.search_input)
+
+        self.ask_ai_btn = QPushButton("✨ Ask AI")
+        self.ask_ai_btn.setStyleSheet(styles.BUTTON_PRIMARY)
+        self.ask_ai_btn.clicked.connect(self._handle_ai_query)
+        top_bar.addWidget(self.ask_ai_btn)
+
+        top_bar.addSpacing(20)
 
         # Upload button
         self.upload_btn = QPushButton("Upload CSV")
@@ -132,7 +178,7 @@ class MainWindow(QMainWindow):
         top_bar.addWidget(self.upload_btn)
 
         # PDF download button
-        self.pdf_btn = QPushButton("📄 Download PDF Report")
+        self.pdf_btn = QPushButton("📄 PDF Report")
         self.pdf_btn.setStyleSheet(styles.BUTTON_SUCCESS)
         self.pdf_btn.clicked.connect(self._download_pdf_report)
         self.pdf_btn.setEnabled(False)
@@ -151,8 +197,10 @@ class MainWindow(QMainWindow):
             top_bar.addWidget(user_label)
 
         # Logout button
-        logout_btn = QPushButton("🚪 LOGOUT")
+        logout_btn = QPushButton("🚪")
+        logout_btn.setToolTip("Logout")
         logout_btn.setStyleSheet(styles.BUTTON_DANGER)
+        logout_btn.setFixedWidth(40)
         logout_btn.clicked.connect(self._handle_logout)
         top_bar.addWidget(logout_btn)
 
@@ -168,6 +216,34 @@ class MainWindow(QMainWindow):
 
         container = QWidget()
         layout = QVBoxLayout(container)
+
+        # --- Customize View Controls ---
+        view_layout = QHBoxLayout()
+        view_label = QLabel("<b>Customize View:</b>")
+        view_label.setStyleSheet("color: #8b949e; margin-right: 10px;")
+        view_layout.addWidget(view_label)
+
+        self.check_trends = QCheckBox("Trend Analysis")
+        self.check_trends.setChecked(True)
+        self.check_trends.setStyleSheet("color: #c5c6c7;")
+        self.check_trends.toggled.connect(lambda c: self._toggle_section('show_trends', c))
+        view_layout.addWidget(self.check_trends)
+
+        self.check_corr = QCheckBox("Correlation Matrix")
+        self.check_corr.setChecked(True)
+        self.check_corr.setStyleSheet("color: #c5c6c7;")
+        self.check_corr.toggled.connect(lambda c: self._toggle_section('show_correlation', c))
+        view_layout.addWidget(self.check_corr)
+
+        self.check_eff = QCheckBox("Efficiency Comparisons")
+        self.check_eff.setChecked(True)
+        self.check_eff.setStyleSheet("color: #c5c6c7;")
+        self.check_eff.toggled.connect(lambda c: self._toggle_section('show_efficiency', c))
+        view_layout.addWidget(self.check_eff)
+
+        view_layout.addStretch()
+        layout.addLayout(view_layout)
+
 
         # Stats cards
         stats_layout = QHBoxLayout()
@@ -350,13 +426,261 @@ class MainWindow(QMainWindow):
 
     # --- Data Tab Setup ---
 
+    # --- Data Tab Setup ---
+
     def _setup_data_tab(self) -> None:
-        """Set up the raw data table tab."""
+        """Set up the raw data table tab with filtering."""
         layout = QVBoxLayout(self.data_tab)
+
+        # Filter Controls
+        filter_layout = QHBoxLayout()
+        filter_label = QLabel("Filter Status:")
+        filter_label.setStyleSheet("color: #c5c6c7; font-weight: bold;")
+        filter_layout.addWidget(filter_label)
+
+        self.status_filter = QComboBox()
+        self.status_filter.addItems(["All Statuses", "Normal", "Warning", "Critical"])
+        self.status_filter.setStyleSheet("background: #0d1117; color: white; border: 1px solid #444c56; padding: 4px; border-radius: 4px;")
+        self.status_filter.currentTextChanged.connect(self._handle_filter_change)
+        filter_layout.addWidget(self.status_filter)
+        
+        filter_layout.addStretch()
+        layout.addLayout(filter_layout)
 
         self.table = QTableWidget()
         self.table.setStyleSheet(styles.TABLE_STYLE)
         layout.addWidget(self.table)
+
+    # --- Feature implementation ---
+
+    def _toggle_section(self, section_key: str, checked: bool) -> None:
+        """Toggle visibility of dashboard sections."""
+        self.view_settings[section_key] = checked
+        
+        if section_key == 'show_trends':
+            # Toggle main chart canvas container if possible?
+            # Actually, main chart (trends) is self.canvas
+            self.canvas.setVisible(checked)
+            self.nav_toolbar.setVisible(checked)
+            
+        elif section_key == 'show_correlation':
+            # Part of advanced analytics
+            if self.advanced_group.isChecked():
+                self._update_advanced_charts(self.current_data['summary'], self.current_data['processed_data'])
+
+        elif section_key == 'show_efficiency':
+             if self.advanced_group.isChecked():
+                self._update_advanced_charts(self.current_data['summary'], self.current_data['processed_data'])
+
+    def _handle_filter_change(self, text: str) -> None:
+        """Update table based on status filter."""
+        mapping = {"All Statuses": "all", "Normal": "normal", "Warning": "warning", "Critical": "critical"}
+        self.table_filter = mapping.get(text, "all")
+        if self.current_data:
+            self._update_table(self.current_data['processed_data'])
+
+    def _handle_ai_query(self) -> None:
+        """Send query to AI and handle response using a worker thread."""
+        query = self.search_input.text().strip()
+        if not query:
+            return
+            
+        if not self.current_data:
+            QMessageBox.warning(self, "No Data", "Please upload data first so the AI has context.")
+            return
+
+        # UI updates
+        self.ask_ai_btn.setEnabled(False)
+        self.search_input.setEnabled(False)
+        self.status_label.setText("Thinking...")
+        
+        # Prepare context
+        context = {
+            "summary": self.current_data['summary'],
+            "sample_records": self.current_data['processed_data'][:10]
+        }
+        
+        # Start Worker
+        self.ai_worker = AIWorker(query, context)
+        self.ai_worker.finished.connect(self._on_ai_success)
+        self.ai_worker.error.connect(self._on_ai_error)
+        self.ai_worker.start()
+
+    def _on_ai_error(self, error_msg: str) -> None:
+        """Handle AI error."""
+        self.status_label.setText("Error")
+        self.ask_ai_btn.setEnabled(True)
+        self.search_input.setEnabled(True)
+        QMessageBox.warning(self, "AI Error", f"Failed to get response:\n{error_msg}")
+
+    def _on_ai_success(self, result: dict) -> None:
+        """Handle successful AI response."""
+        self.status_label.setText("Ready")
+        self.ask_ai_btn.setEnabled(True)
+        self.search_input.setEnabled(True)
+
+        if result:
+            response_text = result['response']
+            action = result.get('action')
+            
+            # Show Response
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Carbon Sleuth AI")
+            dlg.resize(600, 400)
+            dlg_layout = QVBoxLayout(dlg)
+            
+            browser = QTextBrowser()
+            browser.setOpenExternalLinks(True)
+            browser.setMarkdown(response_text)
+            browser.setStyleSheet("background-color: #0d1117; color: #c5c6c7; font-family: .AppleSystemUIFont; padding: 10px;")
+            dlg_layout.addWidget(browser)
+            
+            close_btn = QPushButton("Close")
+            close_btn.clicked.connect(dlg.accept)
+            close_btn.setStyleSheet(styles.BUTTON_PRIMARY)
+            dlg_layout.addWidget(close_btn)
+            
+            # Execute Action
+            if action and action['type'] == 'SEARCH':
+                term = action['payload'].lower()
+                self.status_filter.setCurrentText("All Statuses") # Reset first
+                if term in ['normal', 'warning', 'critical']:
+                     self.status_filter.setCurrentText(term.capitalize())
+                     self.tabs.setCurrentWidget(self.data_tab) # Switch to data tab
+                     QMessageBox.information(dlg, "AI Action", f"Filtered table for '{term}' status.")
+            
+            dlg.exec_()
+
+    # --- Prediction Tab ---
+
+    def _setup_prediction_tab(self) -> None:
+        """Set up the anomaly prediction and analysis tab."""
+        layout = QVBoxLayout(self.prediction_tab)
+        
+        # Header
+        header = QLabel("AI Anomaly Prediction & Insights")
+        header.setStyleSheet("color: #66fcf1; font-size: 18px; font-weight: bold; margin-bottom: 10px;")
+        layout.addWidget(header)
+        
+        # Description
+        desc = QLabel(
+            "Use our AI engine to analyze current equipment data, detect subtle anomalies, "
+            "and predict potential failures based on parameter correlations."
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color: #c5c6c7; font-size: 13px; margin-bottom: 20px;")
+        layout.addWidget(desc)
+        
+        # Action Button
+        self.predict_btn = QPushButton("🚀 Run Deep Analysis")
+        self.predict_btn.setMinimumHeight(50)
+        self.predict_btn.setStyleSheet(styles.BUTTON_PRIMARY)
+        self.predict_btn.clicked.connect(self._run_prediction_analysis)
+        layout.addWidget(self.predict_btn)
+        
+        # Results Area
+        self.prediction_result = QTextBrowser()
+        self.prediction_result.setPlaceholderText("Analysis results will appear here...")
+        self.prediction_result.setStyleSheet("""
+            background-color: #0b0c10; 
+            border: 1px solid #1f2833; 
+            color: #c5c6c7; 
+            padding: 15px; 
+            font-family: 'Courier New';
+            font-size: 13px;
+        """)
+        layout.addWidget(self.prediction_result)
+
+    def _run_prediction_analysis(self) -> None:
+        """Execute AI prediction analysis."""
+        if not self.current_data:
+            QMessageBox.warning(self, "No Data", "Please upload data first.")
+            return
+            
+        self.predict_btn.setEnabled(False)
+        self.predict_btn.setText("Analying Data Patterns...")
+        self.prediction_result.setText("Process initiated...\nScancning parameters...\nIdentifying correlations...")
+        QApplication.processEvents()
+        
+        query = (
+            "Analyze this industrial equipment data for anomalies. "
+            "Identify potential failure risks based on Flowrate, Pressure, and Temperature correlations. "
+            "Provide a 'Future Risk Prediction' section."
+        )
+        
+        context = {
+            "summary": self.current_data['summary'],
+            "outliers": self.current_data['summary'].get('outliers', [])
+        }
+        
+        self.pred_worker = AIWorker(query, context)
+        self.pred_worker.finished.connect(self._on_prediction_success)
+        self.pred_worker.error.connect(self._on_prediction_error)
+        self.pred_worker.start()
+
+    def _format_ai_response_to_html(self, text: str) -> str:
+        """
+        Convert Markdown text to HTML with custom styling for tables.
+        """
+        import re
+        
+        # 1. Convert Headers
+        # ### Header
+        text = re.sub(r'^### (.*)$', r'<h3 style="color: #66fcf1; font-family: sans-serif; margin-top: 20px;">\1</h3>', text, flags=re.MULTILINE)
+        # ## Header
+        text = re.sub(r'^## (.*)$', r'<h2 style="color: #45a29e; font-family: sans-serif; margin-top: 25px;">\1</h2>', text, flags=re.MULTILINE)
+        # **Bold**
+        text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
+        
+        # 2. Convert Tables (Simple Regex Parser)
+        # Detect table block
+        def replace_table(match):
+            block = match.group(0)
+            lines = block.strip().split('\n')
+            if len(lines) < 2: return block
+            
+            html = '<table border="1" style="border-collapse: collapse; width: 100%; border-color: #45a29e; margin-bottom: 20px;">'
+            
+            # Header
+            headers = [h.strip() for h in lines[0].strip('|').split('|')]
+            html += '<thead><tr style="background-color: #1f2833; color: #66fcf1;">'
+            for h in headers:
+                html += f'<th style="padding: 10px; text-align: left; border: 1px solid #45a29e;">{h}</th>'
+            html += '</tr></thead><tbody>'
+            
+            # Rows (skip separator line 1)
+            for i in range(2, len(lines)):
+                cells = [c.strip() for c in lines[i].strip('|').split('|')]
+                bg_color = "#0b0c10" if i % 2 == 0 else "#14171f" # Stripe
+                html += f'<tr style="background-color: {bg_color}; color: #c5c6c7;">'
+                for c in cells:
+                    # Clean up bold in cells
+                    c = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', c)
+                    html += f'<td style="padding: 8px; border: 1px solid #45a29e;">{c}</td>'
+                html += '</tr>'
+            
+            html += '</tbody></table>'
+            return html
+
+        # Look for table patterns (lines starting with |)
+        text = re.sub(r'((\|[^\n]+\|\n)+)', replace_table, text)
+        
+        # 3. Line Breaks
+        text = text.replace('\n', '<br>')
+        
+        return f'<div style="font-family: sans-serif; font-size: 13px; line-height: 1.6;">{text}</div>'
+
+    def _on_prediction_success(self, result: dict) -> None:
+        self.predict_btn.setEnabled(True)
+        self.predict_btn.setText("🚀 Run Deep Analysis")
+        
+        formatted_html = self._format_ai_response_to_html(result['response'])
+        self.prediction_result.setHtml(formatted_html)
+        
+    def _on_prediction_error(self, error: str) -> None:
+        self.predict_btn.setEnabled(True)
+        self.predict_btn.setText("🚀 Run Deep Analysis")
+        self.prediction_result.setText(f"Analysis Failed: {error}")
 
     # --- Auto Refresh ---
 
@@ -539,7 +863,7 @@ class MainWindow(QMainWindow):
         self.upload_btn.setEnabled(True)
 
     def _download_pdf_report(self) -> None:
-        """Download PDF report for current upload."""
+        """Download PDF report, ensuring AI summary exists first."""
         if not self.current_data:
             QMessageBox.warning(self, "No Data", "Please upload or select a dataset first.")
             return
@@ -549,6 +873,67 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Error", "No upload ID found.")
             return
 
+        # Check if summary already exists locally (you might want to fetch from backend to be sure, 
+        # but for now let's assume if we haven't generated it this session, we do it now)
+        # Actually, let's just generate it fresh or update it.
+        
+        reply = QMessageBox.question(
+            self, 'Generate Report', 
+            'Would you like to include a fresh AI-generated summary in the PDF?\n(This takes a few seconds)',
+            QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Yes
+        )
+        
+        if reply == QMessageBox.Cancel:
+            return
+            
+        if reply == QMessageBox.Yes:
+            self._generate_summary_and_download(upload_id)
+        else:
+            self._proceed_download_pdf(upload_id)
+
+    def _generate_summary_and_download(self, upload_id: int) -> None:
+        """Generate AI summary, save to backend, then download."""
+        self.status_label.setText("Generating AI Summary...")
+        self.pdf_btn.setEnabled(False)
+        
+        query = (
+            "Generate a professional executive summary for this equipment data report. "
+            "Highlight key statistics, the number of outliers, and the general health of the system. "
+            "Keep it concise (approx 150 words) and suitable for a formal PDF report."
+        )
+        
+        context = {
+            "summary": self.current_data['summary']
+        }
+        
+        # Use a separate worker to avoid conflict if main search is running
+        self.summary_worker = AIWorker(query, context)
+        self.summary_worker.finished.connect(lambda res: self._on_summary_generated(res, upload_id))
+        self.summary_worker.error.connect(lambda err: self._on_summary_error(err, upload_id))
+        self.summary_worker.start()
+
+    def _on_summary_generated(self, result: dict, upload_id: int) -> None:
+        """Save summary to backend then download."""
+        self.status_label.setText("Saving Summary...")
+        summary_text = result['response']
+        
+        # Run save in background or main thread? Main thread is fine for quick API call, 
+        # but technically should be threaded. `api_client` is synchronous. 
+        # Let's hope it's fast.
+        success, _ = self.api_client.save_ai_summary(upload_id, summary_text)
+        
+        if success:
+            self._proceed_download_pdf(upload_id)
+        else:
+            QMessageBox.warning(self, "Warning", "Failed to save AI summary to report. Downloading without it.")
+            self._proceed_download_pdf(upload_id)
+
+    def _on_summary_error(self, error: str, upload_id: int) -> None:
+        QMessageBox.warning(self, "AI Error", f"Failed to generate summary: {error}\nDownloading standard report.")
+        self._proceed_download_pdf(upload_id)
+
+    def _proceed_download_pdf(self, upload_id: int) -> None:
+        """Actual download logic."""
         default_name = f"equipment_report_{upload_id}.pdf"
         fname, _ = QFileDialog.getSaveFileName(
             self, 'Save PDF Report',
@@ -556,18 +941,22 @@ class MainWindow(QMainWindow):
             "PDF Files (*.pdf)"
         )
         if not fname:
+            self.status_label.setText("Ready")
+            self.pdf_btn.setEnabled(True)
             return
 
         self.status_label.setText("Downloading PDF...")
         QApplication.processEvents()
 
-        success, result = self.api_client.download_pdf(upload_id, fname)
+        success, result_or_path = self.api_client.download_pdf(upload_id, fname)
+        self.pdf_btn.setEnabled(True)
+        self.status_label.setText("Ready")
+        
         if success:
-            self.status_label.setText("PDF Downloaded")
             QMessageBox.information(self, "Success", f"Report saved to:\n{fname}")
         else:
             self.status_label.setText("Download Failed")
-            QMessageBox.warning(self, "Download Failed", result)
+            QMessageBox.warning(self, "Download Failed", result_or_path)
 
     # --- UI Updates ---
 
@@ -596,7 +985,9 @@ class MainWindow(QMainWindow):
         outliers = summary.get('outliers', [])
         if outliers:
             self.outlier_group.setVisible(True)
-            outlier_text = f"<b style='color: #fc2044;'>[ALERT] {len(outliers)} DEVICES CRITICAL:</b><br><br>"
+            self.outlier_group.setTitle(f"[ALERT] {len(outliers)} DEVICES CRITICAL:")
+            
+            outlier_text = ""
             for outlier in outliers[:5]:
                 outlier_text += f"<b>{outlier['equipment']}</b>: "
                 params = [f"{p['parameter']} = {p['value']:.2f}" for p in outlier['parameters']]
@@ -618,10 +1009,23 @@ class MainWindow(QMainWindow):
         self.pdf_btn.setEnabled(True)
 
     def _update_table(self, processed: list) -> None:
-        """Update the data table with health status colors."""
+        """Update the data table with health status colors and filtering."""
         if not processed:
             return
+            
+        # Apply Filter
+        filtered_data = processed
+        if self.table_filter != 'all':
+             filtered_data = [row for row in processed if row.get('health_status') == self.table_filter]
 
+        if not filtered_data and processed:
+            # If filtered result is empty but original is not, show placeholder or empty
+            self.table.setRowCount(0)
+            return
+
+        # Use first row of *processed* (original) to get headers to ensure consistency
+        # Or better, use filtered_data[0] if exists, else keep existing headers?
+        # Let's use processed[0] for headers structure
         headers = list(processed[0].keys())
         if 'health_status' in headers:
             headers.remove('health_status')
@@ -630,10 +1034,10 @@ class MainWindow(QMainWindow):
         headers.insert(0, 'Status')
 
         self.table.setColumnCount(len(headers))
-        self.table.setRowCount(len(processed))
+        self.table.setRowCount(len(filtered_data))
         self.table.setHorizontalHeaderLabels(headers)
 
-        for i, row in enumerate(processed):
+        for i, row in enumerate(filtered_data):
             health_status = row.get('health_status', 'normal')
             status_text = '✓' if health_status == 'normal' else '⚠' if health_status == 'warning' else '✗'
             status_item = QTableWidgetItem(status_text)
@@ -698,7 +1102,7 @@ class MainWindow(QMainWindow):
         colors = self.CHART_COLORS
 
         # Type comparison bar chart
-        if 'type_comparison' in summary:
+        if 'type_comparison' in summary and self.view_settings['show_efficiency']:
             ax1 = self.advanced_figure.add_subplot(221)
             type_comp = summary['type_comparison']
             types = list(type_comp.keys())
@@ -723,7 +1127,7 @@ class MainWindow(QMainWindow):
                 spine.set_color(colors['border'])
 
         # Correlation heatmap
-        if 'correlation_matrix' in summary:
+        if 'correlation_matrix' in summary and self.view_settings['show_correlation']:
             ax2 = self.advanced_figure.add_subplot(222)
             corr_matrix = summary['correlation_matrix']
             params = ['Flowrate', 'Pressure', 'Temperature']

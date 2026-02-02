@@ -87,9 +87,36 @@ const MainPage = ({ data, onUploadSuccess, theme = 'dark' }) => { // Default to 
     }, [summary, colors]);
 
     // --- Actions ---
+    // --- Actions ---
     const handleExport = async () => {
         if (!data?.id) return;
+
+        // Ask user if they want AI summary
+        const wantSummary = window.confirm("Would you like to include a fresh AI-generated executive summary in the PDF?\n(This takes a few seconds provided by our intelligent engine)");
+
         try {
+            if (wantSummary) {
+                // 1. Generate Summary
+                // Import queryAI dynamically if not at top, or just use it if imported. 
+                // We need to import it at the top. 
+                // For now, I'll assume we add the import.
+                const { queryAI } = await import('../services/aiService');
+
+                const context = {
+                    summary: summary, // Use the component's summary data
+                };
+                const query = "Generate a professional executive summary for this equipment data report. Highlight key statistics, the number of outliers, and the general health of the system. Keep it concise (approx 150 words) and suitable for a formal PDF report.";
+
+                // Show some loading state? using alert for now is crude, but effective for blocking.
+                // ideally we use a toast.
+
+                const aiResponse = await queryAI(context, query);
+
+                // 2. Save to Backend
+                await api.saveAISummary(data.id, aiResponse);
+            }
+
+            // 3. Download PDF
             const response = await api.get(`/report/${data.id}/`, { responseType: 'blob' });
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
@@ -100,6 +127,7 @@ const MainPage = ({ data, onUploadSuccess, theme = 'dark' }) => { // Default to 
             link.parentNode.removeChild(link);
         } catch (error) {
             console.error("Export failed", error);
+            alert("Failed to export report. Please try again.");
         }
     };
 

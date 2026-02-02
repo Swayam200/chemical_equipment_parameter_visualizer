@@ -378,6 +378,22 @@ class HistoryView(generics.ListAPIView):
         # Return only the current user's uploads
         return UploadedFile.objects.filter(user=self.request.user)[:5]
 
+class UpdateAISummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            instance = UploadedFile.objects.get(pk=pk, user=request.user)
+            summary_text = request.data.get('summary')
+            if not summary_text:
+                return Response({"error": "No summary provided"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            instance.ai_summary_text = summary_text
+            instance.save()
+            return Response({"status": "success"}, status=status.HTTP_200_OK)
+        except UploadedFile.DoesNotExist:
+            return Response({"error": "Upload not found"}, status=status.HTTP_404_NOT_FOUND)
+
 class PDFReportView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -505,6 +521,118 @@ class PDFReportView(APIView):
             table.drawOn(p, 50, current_y - h)
             current_y -= (h + 30)
             
+            # --- AI Insights Section ---
+            ai_text = getattr(instance, 'ai_summary_text', None)
+            if ai_text:
+                # Header
+                p.setFillColor(self.COLORS['accent'])
+                p.roundRect(40, current_y - 25, 200, 25, 3, fill=True, stroke=False)
+                p.setFillColor(colors.white)
+                p.setFont("Helvetica-Bold", 12)
+                p.drawString(50, current_y - 18, "🤖 AI Analysis & Insights")
+                current_y -= 40
+                
+                # Import styles
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.platypus import Paragraph, Table as PlatyTable, TableStyle as PlatyTableStyle
+                from reportlab.lib.enums import TA_LEFT
+                
+                styles = getSampleStyleSheet()
+                normal_style = styles['Normal']
+                normal_style.fontName = 'Helvetica'
+                normal_style.fontSize = 10
+                normal_style.leading = 14
+                
+                # Custom styles/tags
+                # We will parse the text manually into blocks: Paragraphs vs Tables
+                import re
+                
+                # Improved Markdown Parsing
+                import re
+                
+                # Split by double newlines to get paragraphs
+                raw_paragraphs = re.split(r'\n\s*\n', ai_text)
+                
+                for raw_p in raw_paragraphs:
+                    raw_p = raw_p.strip()
+                    if not raw_p: continue
+                    
+                    # Detect Table syntax (simple check)
+                    if '|' in raw_p and '-|-' in raw_p:
+                        # Process as table
+                        lines = raw_p.split('\n')
+                        rows = []
+                        for line in lines:
+                             if not line.strip(): continue
+                             cells = [c.strip() for c in line.strip('|').split('|')]
+                             rows.append(cells)
+                        
+                        # Filter separator
+                        rows = [r for r in rows if not all(all(c in '-:' for c in text) for text in r)]
+                        
+                        if len(rows) > 0:
+                            num_cols = len(rows[0])
+                            col_width = (width - 100) / num_cols
+                            t = PlatyTable(rows, colWidths=[col_width] * num_cols)
+                            
+                            ts = [
+                                ('BACKGROUND', (0, 0), (-1, 0), self.COLORS['header_bg']),
+                                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                                ('fontName', (0, 0), (-1, 0), "Helvetica-Bold"),
+                                ('fontSize', (0, 0), (-1, -1), 9),
+                                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
+                                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                                ('PADDING', (0, 0), (-1, -1), 6),
+                            ]
+                            # Zebra
+                            for r_idx in range(1, len(rows)):
+                                if r_idx % 2 == 0:
+                                    ts.append(('BACKGROUND', (0, r_idx), (-1, r_idx), self.COLORS['table_alt']))
+                                    
+                            t.setStyle(PlatyTableStyle(ts))
+                            w, h = t.wrap(width - 100, height)
+                            
+                            if current_y - h < 50:
+                                self.draw_footer(p, width, 1)
+                                p.showPage()
+                                current_y = self.draw_header(p, width, height, "AI Analysis (continued)")
+                                
+                            t.drawOn(p, 50, current_y - h)
+                            current_y -= (h + 15)
+                        
+                    else:
+                        # Process as Text Paragraph
+                        text = raw_p
+                        
+                        # Headers (Markdown ### or just Title Case lines)
+                        if text.startswith('###'):
+                             text = f'<font size="12" color="#1a1a2e"><b>{text.replace("###", "").strip()}</b></font>'
+                             space_after = 6
+                        elif text.startswith('##'):
+                             text = f'<font size="14" color="#0f3460"><b>{text.replace("##", "").strip()}</b></font>'
+                             space_after = 10
+                        else:
+                             # Bold
+                             text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
+                             # Bullets (replace * or - at start of lines)
+                             text = re.sub(r'(?m)^[\*\-■] ', r'&bull; ', text)
+                             # Normalize newlines within paragraph to spaces (reflow)
+                             # But keep manual breaks if needed? simpler to just replace single \n with space
+                             if not text.startswith('<font'):
+                                text = text.replace('\n', ' ')
+                             space_after = 10
+                        
+                        para = Paragraph(text, normal_style)
+                        w, h = para.wrap(width - 100, height)
+                        
+                        if current_y - h < 50:
+                            self.draw_footer(p, width, 1)
+                            p.showPage()
+                            current_y = self.draw_header(p, width, height, "AI Analysis (continued)")
+                        
+                        para.drawOn(p, 50, current_y - h)
+                        current_y -= (h + space_after)
+
             # Type Distribution with styled header
             p.setFillColor(self.COLORS['accent'])
             p.roundRect(40, current_y - 25, 220, 25, 3, fill=True, stroke=False)
@@ -528,25 +656,60 @@ class PDFReportView(APIView):
                 p.drawString(70, current_y, f"• {k}: {v} units")
                 current_y -= 18
             
-            # Outlier Alert with styled box
+            # Outlier Alert with styled TABLE (No artifacts)
             outliers = stats.get('outliers', [])
             if outliers and len(outliers) > 0:
-                current_y -= 15
+                current_y -= 25
                 if current_y < 80:
                     self.draw_footer(p, width, 1)
                     p.showPage()
                     current_y = self.draw_header(p, width, height, "Summary (continued)")
                 
-                # Alert box
-                p.setFillColor(colors.HexColor('#fef2f2'))
-                p.roundRect(40, current_y - 35, width - 80, 35, 5, fill=True, stroke=False)
-                p.setStrokeColor(self.COLORS['danger'])
-                p.setLineWidth(2)
-                p.roundRect(40, current_y - 35, width - 80, 35, 5, fill=False, stroke=True)
-                
+                # Header for alert
                 p.setFillColor(self.COLORS['danger'])
-                p.setFont("Helvetica-Bold", 11)
-                p.drawString(55, current_y - 23, f"⚠️ ALERT: {len(outliers)} Equipment Outliers Detected")
+                p.setFont("Helvetica-Bold", 14)
+                p.drawString(50, current_y, f"⚠️ ALERT: {len(outliers)} Critical Anomalies Detected")
+                current_y -= 20
+                
+                # Create Table data for outliers
+                # Columns: Equipment, Parameter, Value, Limit (Lower/Upper)
+                alert_data = [["Equipment", "Parameter", "Value", "Limit", "Status"]]
+                
+                for out in outliers:
+                    eq_name = out['equipment']
+                    for param in out.get('parameters', []):
+                        val = param['value']
+                        l_bound = param['lower_bound']
+                        u_bound = param['upper_bound']
+                        p_name = param['parameter']
+                        
+                        limit_str = f"{l_bound:.2f} - {u_bound:.2f}"
+                        status_str = "High" if val > u_bound else "Low"
+                        
+                        alert_data.append([
+                            eq_name, 
+                            p_name, 
+                            f"{val:.2f}",
+                            limit_str,
+                            status_str.upper()
+                        ])
+                
+                # ALERT Table
+                t_alert = PlatyTable(alert_data, colWidths=[120, 100, 80, 120, 80])
+                t_style = [
+                    ('BACKGROUND', (0, 0), (-1, 0), self.COLORS['danger']),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, self.COLORS['danger']),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#fef2f2')),
+                    ('TEXTCOLOR', (0, 1), (-1, -1), self.COLORS['danger']),
+                ]
+                t_alert.setStyle(PlatyTableStyle(t_style))
+                
+                w, h = t_alert.wrap(width - 100, height)
+                t_alert.drawOn(p, 50, current_y - h)
+                current_y -= (h + 20)
 
             self.draw_footer(p, width, 1)
             p.showPage()

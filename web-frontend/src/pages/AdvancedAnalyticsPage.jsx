@@ -11,6 +11,9 @@ import {
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
 import api from '../api';
+import { queryAI } from '../services/aiService';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { chartColors } from '../chartConfig';
 import { useSearch } from '../context/SearchContext';
 
@@ -35,11 +38,35 @@ const AdvancedAnalyticsPage = ({ data, theme = 'dark' }) => {
 
     // Controls visibility of individual dashboard sections
     const [viewSettings, setViewSettings] = useState({
+        showPredictions: true,
         showTrends: true,
         showCorrelation: true,
         showEfficiency: true,
         showTable: true
     });
+
+    const [predictionResult, setPredictionResult] = useState(null);
+    const [isPredicting, setIsPredicting] = useState(false);
+
+    const handleRunPrediction = async () => {
+        setIsPredicting(true);
+        try {
+            // Mock context or use actual data
+            const context = {
+                summary: summary,
+                outliers: summary.outliers || []
+            };
+            const query = "Analyze this industrial equipment data for anomalies. Identify potential failure risks based on Flowrate, Pressure, and Temperature correlations. Provide a 'Future Risk Prediction' section.";
+
+            const response = await queryAI(context, query);
+            setPredictionResult(response);
+        } catch (error) {
+            console.error("Prediction failed", error);
+            setPredictionResult("Failed to generate prediction analysis.");
+        } finally {
+            setIsPredicting(false);
+        }
+    };
 
     // Filter state for the Equipment Data Log table ('all', 'normal', 'warning', 'critical')
     const [statusFilter, setStatusFilter] = useState('all');
@@ -133,6 +160,10 @@ const AdvancedAnalyticsPage = ({ data, theme = 'dark' }) => {
                             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Toggle Visibility</h4>
                             <div className="space-y-2">
                                 <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg">
+                                    <input type="checkbox" checked={viewSettings.showPredictions} onChange={() => setViewSettings(prev => ({ ...prev, showPredictions: !prev.showPredictions }))} className="rounded text-primary focus:ring-primary h-4 w-4 border-slate-300 dark:border-slate-600" />
+                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">AI Predictions</span>
+                                </label>
+                                <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg">
                                     <input type="checkbox" checked={viewSettings.showTrends} onChange={() => setViewSettings(prev => ({ ...prev, showTrends: !prev.showTrends }))} className="rounded text-primary focus:ring-primary h-4 w-4 border-slate-300 dark:border-slate-600" />
                                     <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Trend Analysis</span>
                                 </label>
@@ -158,6 +189,78 @@ const AdvancedAnalyticsPage = ({ data, theme = 'dark' }) => {
                     </button>
                 </div>
             </div>
+
+            {/* AI Predictions Section */}
+            {viewSettings.showPredictions && (
+                <section className="bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-border-dark shadow-sm overflow-hidden p-6 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-1.5 rounded bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400">
+                                <span className="material-symbols-outlined text-xl">psychology</span>
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-slate-900 dark:text-white text-base">AI Anomaly Prediction & Insights</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">Deep learning analysis of potential equipment failures</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                        {!predictionResult ? (
+                            <div className="flex flex-col items-center justify-center p-8 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+                                <p className="text-slate-500 dark:text-slate-400 mb-4 text-center max-w-lg">
+                                    Run our advanced AI engine to scan your equipment data for subtle anomalies, parameter drifts, and correlation risks that traditional thresholding might miss.
+                                </p>
+                                <button
+                                    onClick={handleRunPrediction}
+                                    disabled={isPredicting}
+                                    className="px-6 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg font-semibold shadow-sm transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {isPredicting ? (
+                                        <>
+                                            <span className="material-symbols-outlined animate-spin">refresh</span>
+                                            Analyzing Patterns...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="material-symbols-outlined">rocket_launch</span>
+                                            Run Deep Analysis
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-4">
+                                <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 max-h-[500px] overflow-y-auto custom-scrollbar">
+                                    <div className="prose prose-sm dark:prose-invert max-w-none 
+                                        prose-p:text-slate-600 dark:prose-p:text-slate-300 
+                                        prose-headings:text-slate-900 dark:prose-headings:text-white 
+                                        prose-indigo 
+                                        
+                                        /* Table Styling */
+                                        [&_table]:w-full [&_table]:border-collapse [&_table]:border [&_table]:border-slate-300 [&_table]:dark:border-slate-600 [&_table]:mb-4
+                                        
+                                        /* Header Styling */
+                                        [&_th]:bg-slate-100 [&_th]:dark:bg-slate-800 [&_th]:text-slate-900 [&_th]:dark:text-white [&_th]:font-semibold [&_th]:p-3 [&_th]:border [&_th]:border-slate-300 [&_th]:dark:border-slate-600 [&_th]:text-left
+                                        
+                                        /* Cell Styling */
+                                        [&_td]:p-3 [&_td]:border [&_td]:border-slate-300 [&_td]:dark:border-slate-600 [&_td]:text-slate-700 [&_td]:dark:text-slate-300">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{predictionResult}</ReactMarkdown>
+                                    </div>
+                                </div>
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={() => setPredictionResult(null)}
+                                        className="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline"
+                                    >
+                                        Clear Analysis
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
 
             {/* Trend Analysis Section */}
             {viewSettings.showTrends && (

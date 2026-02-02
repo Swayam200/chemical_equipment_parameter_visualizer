@@ -4,6 +4,18 @@ Chemical Equipment Parameter Visualizer - Desktop Application
 Entry point for the PyQt5 desktop frontend.
 """
 import sys
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (web-frontend/.env or current dir)
+# Try to find web-frontend .env first
+current_dir = os.path.dirname(os.path.abspath(__file__))
+web_env = os.path.join(current_dir, '..', 'web-frontend', '.env')
+if os.path.exists(web_env):
+    load_dotenv(web_env)
+else:
+    load_dotenv()
+
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from app.api_client import ApiClient

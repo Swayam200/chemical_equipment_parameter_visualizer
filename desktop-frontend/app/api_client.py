@@ -145,6 +145,20 @@ class ApiClient:
         except Exception as e:
             return False, {'error': str(e)}
 
+    def save_ai_summary(self, upload_id: int, summary_text: str) -> Tuple[bool, Dict[str, Any]]:
+        """Save AI summary for an upload."""
+        try:
+            res = requests.post(
+                f"{self.base_url}upload/{upload_id}/summary/",
+                json={'summary': summary_text},
+                headers={**self._get_headers(), 'Content-Type': 'application/json'}
+            )
+            if res.status_code == 200:
+                return True, res.json()
+            return False, res.json() if res.text else {'error': f'Status {res.status_code}'}
+        except Exception as e:
+            return False, {'error': str(e)}
+
     # --- Report Endpoints ---
 
     def download_pdf(self, upload_id: int, save_path: str) -> Tuple[bool, str]:
