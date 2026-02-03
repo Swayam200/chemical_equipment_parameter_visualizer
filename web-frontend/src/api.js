@@ -17,6 +17,11 @@ const api = axios.create({
   baseURL: '/api',
 });
 
+// AI Summary Helper
+api.saveAISummary = (uploadId, summaryText) => {
+  return api.post(`/upload/${uploadId}/summary/`, { summary: summaryText });
+};
+
 // Token refresh interceptor
 api.interceptors.response.use(
   (response) => response,

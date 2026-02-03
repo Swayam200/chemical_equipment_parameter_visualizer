@@ -1,353 +1,298 @@
 """
-Centralized stylesheet definitions for the Desktop App.
-All QSS (Qt Style Sheets) strings are defined here for maintainability.
-
-Color Palette (Industrial Dark Theme):
-- Background: #0b0c10 (Dark Navy)
-- Card BG: rgba(31, 40, 51, 0.6) (Metallic)
-- Primary Text: #66fcf1 (Neon Cyan)
-- Secondary Text: #c5c6c7 (Silver)
-- Muted Text: #8b949e (Gray)
-- Accent: #45a29e (Teal)
-- Success: #20fc8f (Neon Green)
-- Danger: #fc2044 (Neon Red)
-- Warning: #e0a800 (Amber)
+Application Stylesheet
+Defines QSS styles for the PyQt5 application.
 """
 
-# --- Main Window & Layout ---
-MAIN_WINDOW_STYLE = """
-    background-color: #0b0c10;
-    color: #c5c6c7;
-    font-family: 'JetBrains Mono', 'Consolas', monospace;
+# Colors
+COLOR_BG = "#0b0c10"
+COLOR_SIDEBAR = "#1f2833"
+COLOR_TEXT_PRIMARY = "#c5c6c7"
+COLOR_TEXT_SECONDARY = "#8b949e"
+COLOR_ACCENT_BLUE = "#66fcf1"
+COLOR_ACCENT_TEAL = "#45a29e"
+
+# Window
+MAIN_WINDOW_STYLE = f"""
+    background-color: {COLOR_BG};
+    color: {COLOR_TEXT_PRIMARY};
 """
 
-SIDEBAR_STYLE = """
-    QWidget {
-        background-color: #0b0c10;
-        border-right: 1px solid #1f2833;
-    }
-    QListWidget {
+# Sidebar
+SIDEBAR_STYLE = f"""
+    background-color: {COLOR_SIDEBAR};
+    border-right: 1px solid #000;
+    padding: 10px;
+"""
+
+# Buttons
+BUTTON_BASE = """
+    QPushButton {
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-weight: bold;
         border: none;
-        background-color: #0b0c10;
-        color: #c5c6c7;
     }
-    QListWidget::item {
-        padding: 10px;
-        border-bottom: 1px solid #1f2833;
-    }
-    QListWidget::item:selected {
-        background-color: #1f2833;
-        color: #66fcf1;
-        border-left: 3px solid #66fcf1;
-    }
-    QListWidget::item:hover {
-        background-color: #1f2833;
+    QPushButton:disabled {
+        background-color: #2d333b;
+        color: #444c56;
     }
 """
 
-# --- Buttons ---
-BUTTON_PRIMARY = """
-    QPushButton {
-        background-color: rgba(69, 162, 158, 0.1);
-        color: #66fcf1;
-        padding: 10px 20px;
-        font-weight: bold;
-        border-radius: 2px;
-        border: 1px solid #45a29e;
-        font-family: monospace;
-    }
-    QPushButton:hover {
-        background-color: #45a29e;
+BUTTON_PRIMARY = BUTTON_BASE + f"""
+    QPushButton {{
+        background-color: {COLOR_ACCENT_BLUE};
         color: #0b0c10;
-    }
+    }}
+    QPushButton:hover {{
+        background-color: #45a29e;
+    }}
 """
 
-BUTTON_SUCCESS = """
+BUTTON_SUCCESS = BUTTON_BASE + """
     QPushButton {
-        background-color: rgba(32, 252, 143, 0.1);
-        color: #20fc8f;
-        padding: 10px 20px;
-        font-weight: bold;
-        border-radius: 2px;
-        border: 1px solid #20fc8f;
-        font-family: monospace;
-    }
-    QPushButton:hover {
         background-color: #20fc8f;
         color: #0b0c10;
     }
-    QPushButton:disabled {
-        background-color: #1f2833;
-        color: #45a29e;
-        border: 1px solid #1f2833;
+    QPushButton:hover {
+        background-color: #16c973;
     }
 """
 
-BUTTON_DANGER = """
+BUTTON_DANGER = BUTTON_BASE + """
     QPushButton {
-        background-color: transparent;
-        color: #fc2044;
-        padding: 10px 20px;
-        font-weight: bold;
-        border-radius: 2px;
-        border: 1px solid #fc2044;
-        font-family: monospace;
+        background-color: #fc2044;
+        color: white;
     }
     QPushButton:hover {
-        background-color: #fc2044;
+        background-color: #c91936;
+    }
+"""
+
+BUTTON_SAVE = BUTTON_BASE + f"""
+    QPushButton {{
+        background-color: {COLOR_ACCENT_TEAL};
         color: #0b0c10;
-    }
+    }}
+    QPushButton:hover {{
+        background-color: #3b8c89;
+    }}
 """
 
-BUTTON_SAVE = """
+BUTTON_RESET = BUTTON_BASE + """
     QPushButton {
-        background-color: #45a29e;
-        color: #0b0c10;
-        padding: 8px 16px;
-        border-radius: 2px;
-        font-weight: bold;
-    }
-    QPushButton:hover { background-color: #66fcf1; }
-    QPushButton:disabled { background-color: #1f2833; color: #8b949e; }
-"""
-
-BUTTON_RESET = """
-    QPushButton {
-        background-color: transparent;
-        color: #8b949e;
-        padding: 8px 16px;
-        border: 1px solid #1f2833;
-        border-radius: 2px;
-    }
-    QPushButton:hover { background-color: #1f2833; color: #c5c6c7; }
-    QPushButton:disabled { color: #45a29e; }
-"""
-
-# --- Stats Cards ---
-STAT_CARD_STYLE = """
-    background-color: rgba(31, 40, 51, 0.6);
-    border: 1px solid #1f2833;
-    border-radius: 2px;
-    color: #66fcf1;
-    padding: 15px;
-    font-size: 12px;
-    font-weight: bold;
-    font-family: monospace;
-"""
-
-# --- Tables ---
-TABLE_STYLE = """
-    QTableWidget {
-        background-color: #0b0c10;
+        background-color: #2d333b;
         color: #c5c6c7;
-        gridline-color: #1f2833;
-        border: 1px solid #1f2833;
-        font-family: monospace;
+        border: 1px solid #444c56;
     }
-    QHeaderView::section {
-        background-color: #1f2833;
-        color: #66fcf1;
-        padding: 4px;
-        border: 1px solid #0b0c10;
-        font-weight: bold;
-    }
-    QTableCornerButton::section {
-        background-color: #1f2833;
+    QPushButton:hover {
+        background-color: #373e47;
     }
 """
 
-# --- Group Boxes ---
-OUTLIER_GROUP_STYLE = """
-    QGroupBox {
-        background-color: rgba(252, 32, 68, 0.05);
+# Other elements
+SCROLL_AREA_STYLE = f"background-color: {COLOR_BG}; border: none;"
+STAT_CARD_STYLE = f"""
+    background-color: {COLOR_SIDEBAR};
+    border-radius: 8px;
+    padding: 10px;
+    color: {COLOR_TEXT_PRIMARY};
+    font-size: 13px;
+    font-weight: bold;
+"""
+OUTLIER_GROUP_STYLE = f"""
+    QGroupBox {{
+        background-color: rgba(252, 32, 68, 0.1);
         border: 1px solid #fc2044;
-        border-radius: 2px;
-        margin-top: 10px;
-        padding-top: 15px;
-        font-weight: bold;
+        border-radius: 6px;
+        margin-top: 20px; /* Increased margin to clear title */
+        font-size: 13px;
         color: #fc2044;
-        font-family: monospace;
-    }
-    QGroupBox::title {
-        subcontrol-origin: margin;
-        left: 10px;
-        padding: 0 5px;
-    }
-"""
-
-ADVANCED_GROUP_STYLE = """
-    QGroupBox {
-        background-color: rgba(31, 40, 51, 0.4);
-        border: 1px solid #45a29e;
-        border-radius: 2px;
-        margin-top: 10px;
-        padding-top: 15px;
         font-weight: bold;
-        color: #45a29e;
-        font-family: monospace;
-    }
-    QGroupBox::title {
+    }}
+    QGroupBox::title {{
         subcontrol-origin: margin;
+        subcontrol-position: top left;
         left: 10px;
         padding: 0 5px;
-    }
+        background-color: transparent; /* Ensure no background block */
+    }}
 """
 
-THRESHOLD_GROUP_STYLE = """
-    QGroupBox {
-        background-color: rgba(69, 162, 158, 0.05);
-        border: 1px solid #45a29e;
-        border-radius: 2px;
-        margin-top: 10px;
-        padding-top: 15px;
+ADVANCED_GROUP_STYLE = f"""
+    QGroupBox {{
+        border: 1px solid {COLOR_SIDEBAR};
+        border-radius: 6px;
+        margin-top: 20px;
+        padding-top: 10px;
         font-weight: bold;
-        color: #45a29e;
-        font-family: monospace;
-    }
-    QGroupBox::title {
+        color: {COLOR_TEXT_PRIMARY};
+    }}
+    QGroupBox::title {{
         subcontrol-origin: margin;
         left: 10px;
         padding: 0 5px;
-    }
+    }}
 """
 
-# --- Scroll Area ---
-SCROLL_AREA_STYLE = "QScrollArea { border: none; background-color: #0b0c10; }"
+THRESHOLD_GROUP_STYLE = ADVANCED_GROUP_STYLE
 
-# --- Navigation Toolbar (Matplotlib) ---
-NAV_TOOLBAR_STYLE = """
-    QToolBar {
-        background-color: #1f2833;
-        border: 1px solid #45a29e;
-        border-radius: 4px;
-        padding: 4px;
-        spacing: 4px;
-    }
-    QToolButton {
-        background-color: #e8e8e8;
-        border: 1px solid #45a29e;
-        border-radius: 3px;
-        padding: 6px;
-        margin: 2px;
-        min-width: 28px;
-        min-height: 28px;
-    }
-    QToolButton:hover {
-        background-color: #66fcf1;
-        border-color: #66fcf1;
-    }
-    QToolButton:pressed, QToolButton:checked {
-        background-color: #45a29e;
-    }
-"""
+THRESHOLD_GROUP_STYLE = ADVANCED_GROUP_STYLE
 
-# --- Sliders ---
+# Make toolbar background light so black icons are visible
+NAV_TOOLBAR_STYLE = f"background-color: #e6edf3; border-radius: 4px; padding: 2px;"
+
 WARNING_SLIDER_STYLE = """
-    QSlider::groove:horizontal { background: #1f2833; height: 8px; border-radius: 4px; }
-    QSlider::handle:horizontal { background: #e0a800; width: 16px; margin: -4px 0; border-radius: 8px; }
-    QSlider::sub-page:horizontal { background: #e0a800; border-radius: 4px; }
+    QSlider::groove:horizontal {
+        border: 1px solid #bbb;
+        background: white;
+        height: 6px;
+        border-radius: 3px;
+    }
+    QSlider::sub-page:horizontal {
+        background: #e0a800;
+        border-radius: 3px;
+    }
+    QSlider::handle:horizontal {
+        background: #e0a800;
+        border: 1px solid #e0a800;
+        width: 14px;
+        height: 14px;
+        margin: -5px 0; 
+        border-radius: 7px;
+    }
 """
 
 IQR_SLIDER_STYLE = """
-    QSlider::groove:horizontal { background: #1f2833; height: 8px; border-radius: 4px; }
-    QSlider::handle:horizontal { background: #fc2044; width: 16px; margin: -4px 0; border-radius: 8px; }
-    QSlider::sub-page:horizontal { background: #fc2044; border-radius: 4px; }
+    QSlider::groove:horizontal {
+        border: 1px solid #bbb;
+        background: white;
+        height: 6px;
+        border-radius: 3px;
+    }
+    QSlider::sub-page:horizontal {
+        background: #fc2044;
+        border-radius: 3px;
+    }
+    QSlider::handle:horizontal {
+        background: #fc2044;
+        border: 1px solid #fc2044;
+        width: 14px;
+        height: 14px;
+        margin: -5px 0; 
+        border-radius: 7px;
+    }
 """
 
-# --- Login Dialog ---
+TABLE_STYLE = f"""
+    QTableWidget {{
+        background-color: {COLOR_BG};
+        gridline-color: {COLOR_SIDEBAR};
+        color: {COLOR_TEXT_PRIMARY};
+    }}
+    QHeaderView::section {{
+        background-color: {COLOR_SIDEBAR};
+        color: {COLOR_TEXT_SECONDARY};
+        padding: 5px;
+        border: none;
+    }}
+    QTableCornerButton::section {{
+        background-color: {COLOR_SIDEBAR};
+        border: none;
+    }}
+"""
+
+# --- Login Dialog Styles ---
+
 def get_login_dialog_style(img_path: str) -> str:
-    """Returns the login dialog stylesheet with the background image path."""
+    # Use forward slashes for CSS path compatibility
+    clean_path = img_path.replace("\\", "/")
     return f"""
         QDialog {{
-            background-image: url('{img_path}');
+            background-image: url('{clean_path}');
             background-position: center;
             background-repeat: no-repeat;
-            border: 2px solid #45a29e;
+            background-color: #0b0c10;
         }}
     """
 
-LOGIN_CONTAINER_STYLE = """
-    QWidget {
+LOGIN_CONTAINER_STYLE = f"""
+    QWidget {{
         background-color: rgba(11, 12, 16, 0.85);
-        border: 1px solid rgba(102, 252, 241, 0.3);
-        border-radius: 4px;
-    }
+        border: 1px solid {COLOR_SIDEBAR};
+        border-radius: 12px;
+    }}
 """
 
-LOGIN_HEADER_STYLE = """
-    color: #66fcf1;
+LOGIN_HEADER_STYLE = f"""
+    color: {COLOR_ACCENT_BLUE};
     font-size: 24px;
     font-weight: bold;
     letter-spacing: 2px;
-    background: transparent;
-    border: none;
-    margin-bottom: 5px;
 """
 
-LOGIN_SUBHEADER_STYLE = """
-    color: #45a29e;
-    font-family: monospace;
-    font-size: 14px;
-    background: transparent;
-    border: none;
+LOGIN_SUBHEADER_STYLE = f"""
+    color: {COLOR_TEXT_SECONDARY};
+    font-family: 'Courier New';
+    font-size: 11px;
     margin-bottom: 20px;
 """
 
-LOGIN_INPUT_STYLE = """
-    QLineEdit {
-        background-color: #0d1117;
-        border: 1px solid #1f2833;
-        color: #66fcf1;
+LOGIN_INPUT_STYLE = f"""
+    QLineEdit {{
+        background-color: rgba(31, 40, 51, 0.6);
+        border: 1px solid {COLOR_SIDEBAR};
+        border-radius: 4px;
+        color: {COLOR_ACCENT_TEAL};
         padding: 10px;
-        font-family: monospace;
-        border-radius: 0px;
-    }
-    QLineEdit:focus {
-        border: 1px solid #66fcf1;
-        background-color: #000;
-    }
+        font-family: 'Courier New';
+        font-size: 13px;
+    }}
+    QLineEdit:focus {{
+        border: 1px solid {COLOR_ACCENT_BLUE};
+        background-color: rgba(31, 40, 51, 0.9);
+    }}
 """
 
-LOGIN_ACTION_BUTTON_STYLE = """
-    QPushButton {
-        background-color: rgba(69, 162, 158, 0.1);
-        color: #66fcf1;
+LOGIN_ACTION_BUTTON_STYLE = f"""
+    QPushButton {{
+        background-color: {COLOR_ACCENT_BLUE};
+        color: #0b0c10;
+        border: none;
+        border-radius: 4px;
         padding: 12px;
         font-weight: bold;
-        border: 1px solid #45a29e;
-        border-radius: 2px;
-        font-family: monospace;
         letter-spacing: 1px;
-    }
-    QPushButton:hover {
+    }}
+    QPushButton:hover {{
         background-color: #45a29e;
-        color: #0b0c10;
-    }
+    }}
 """
 
-LOGIN_TOGGLE_BUTTON_STYLE = """
-    QPushButton {
-        background: none;
+LOGIN_TOGGLE_BUTTON_STYLE = f"""
+    QPushButton {{
+        background-color: transparent;
+        color: {COLOR_TEXT_SECONDARY};
         border: none;
-        color: #8b949e;
-        font-family: monospace;
-        font-size: 12px;
-    }
-    QPushButton:hover {
-        color: #66fcf1;
-    }
-"""
-
-LOGIN_EXIT_BUTTON_STYLE = """
-    QPushButton {
-        background: none;
-        border: none;
-        color: #fc2044;
         font-family: monospace;
         font-size: 11px;
-        margin-top: 10px;
-    }
-    QPushButton:hover {
+    }}
+    QPushButton:hover {{
+        color: {COLOR_TEXT_PRIMARY};
         text-decoration: underline;
-    }
+    }}
+"""
+
+LOGIN_EXIT_BUTTON_STYLE = f"""
+    QPushButton {{
+        background-color: transparent;
+        color: #fc2044;
+        border: 1px solid #fc2044;
+        border-radius: 4px;
+        padding: 8px;
+        font-size: 10px;
+        margin-top: 10px;
+    }}
+    QPushButton:hover {{
+        background-color: rgba(252, 32, 68, 0.1);
+    }}
 """

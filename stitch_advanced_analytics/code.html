@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Advanced Analytics - Equipment Parameter Visualizer</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#197fe6",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#111921",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1a242d",
+                        "border-light": "#e7edf3",
+                        "border-dark": "#2d3b4a",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for table body */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #475569;
+        }
+        .font-tabular {
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen flex flex-col">
+<!-- Top Navigation -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-6 py-3 sticky top-0 z-50">
+<div class="flex items-center gap-4">
+<div class="size-8 rounded bg-primary/10 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl">science</span>
+</div>
+<h2 class="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight">ChemVis Pro <span class="text-slate-400 font-medium text-sm ml-2 hidden sm:inline-block">/ Equipment Parameter Visualizer</span></h2>
+</div>
+<div class="flex flex-1 justify-end gap-6 items-center">
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary text-sm font-medium transition-colors" href="#">Dashboard</a>
+<a class="text-primary text-sm font-bold border-b-2 border-primary py-1" href="#">Analytics</a>
+<a class="text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary text-sm font-medium transition-colors" href="#">Reports</a>
+<a class="text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary text-sm font-medium transition-colors" href="#">Settings</a>
+</nav>
+<div class="h-6 w-px bg-slate-200 dark:bg-slate-700 hidden md:block"></div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-semibold transition-colors border border-transparent dark:border-slate-700">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<span>Last 24 Hours</span>
+</button>
+<button class="relative flex items-center justify-center size-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-300">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-800"></span>
+</button>
+<button class="flex items-center justify-center size-9 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[20px]">person</span>
+</button>
+</div>
+</div>
+</header>
+<main class="flex-1 p-6 lg:px-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Advanced Analytics</h1>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Deep dive into flowrate trends, correlations, and equipment health status.</p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium text-slate-700 dark:text-slate-300">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+                    Customize View
+                </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg shadow-sm transition-colors text-sm font-medium">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                    Export Report
+                </button>
+</div>
+</div>
+<!-- Trend Analysis Section (Full Width) -->
+<section class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
+<div class="flex items-center justify-between px-6 py-4 border-b border-border-light dark:border-border-dark">
+<div class="flex items-center gap-3">
+<div class="p-1.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+<span class="material-symbols-outlined text-xl">ssid_chart</span>
+</div>
+<div>
+<h3 class="font-semibold text-slate-900 dark:text-white text-base">Flowrate &amp; Temperature Trends</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400">Real-time sensor data aggregation • 98% Efficiency</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 rounded-md px-2 py-1">
+<span class="size-2 rounded-full bg-primary"></span>
+<span>Flowrate (L/min)</span>
+</div>
+<div class="flex items-center gap-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 rounded-md px-2 py-1">
+<span class="size-2 rounded-full bg-emerald-500"></span>
+<span>Temp (°C)</span>
+</div>
+<div class="border-l border-slate-200 dark:border-slate-700 h-4 mx-2"></div>
+<button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"><span class="material-symbols-outlined">zoom_in</span></button>
+<button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"><span class="material-symbols-outlined">zoom_out</span></button>
+<button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"><span class="material-symbols-outlined">pan_tool</span></button>
+</div>
+</div>
+<div class="p-6 h-[320px] w-full relative">
+<!-- Abstract Chart Representation -->
+<svg class="w-full h-full overflow-visible" preserveaspectratio="none" viewbox="0 0 1200 300">
+<!-- Grid Lines -->
+<g class="dark:stroke-slate-800" stroke="#e2e8f0" stroke-dasharray="4 4" stroke-width="1">
+<line x1="0" x2="1200" y1="50" y2="50"></line>
+<line x1="0" x2="1200" y1="100" y2="100"></line>
+<line x1="0" x2="1200" y1="150" y2="150"></line>
+<line x1="0" x2="1200" y1="200" y2="200"></line>
+<line x1="0" x2="1200" y1="250" y2="250"></line>
+</g>
+<!-- Area Gradient Fill -->
+<defs>
+<lineargradient id="flowGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#197fe6" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#197fe6" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<!-- Flowrate Line (Primary) -->
+<path d="M0 200 Q 150 180, 300 120 T 600 140 T 900 80 T 1200 100 V 300 H 0 Z" fill="url(#flowGradient)"></path>
+<path d="M0 200 Q 150 180, 300 120 T 600 140 T 900 80 T 1200 100" fill="none" stroke="#197fe6" stroke-width="3"></path>
+<!-- Temp Line (Secondary) -->
+<path d="M0 240 Q 200 250, 400 200 T 800 180 T 1200 220" fill="none" stroke="#10b981" stroke-dasharray="6 4" stroke-width="2"></path>
+<!-- Interactive Tooltip Indicator -->
+<line stroke="#64748b" stroke-dasharray="2 2" stroke-width="1" x1="800" x2="800" y1="0" y2="300"></line>
+<circle cx="800" cy="180" fill="#10b981" r="5" stroke="white" stroke-width="2"></circle>
+<circle cx="800" cy="107" fill="#197fe6" r="5" stroke="white" stroke-width="2"></circle>
+<!-- Tooltip Box -->
+<foreignobject height="80" width="140" x="820" y="80">
+<div class="bg-slate-900/90 text-white text-xs p-2 rounded shadow-lg backdrop-blur-sm border border-slate-700">
+<div class="font-bold mb-1">14:20 PM</div>
+<div class="flex justify-between gap-2"><span class="text-blue-400">Flow:</span> <span class="font-mono">842 L/m</span></div>
+<div class="flex justify-between gap-2"><span class="text-emerald-400">Temp:</span> <span class="font-mono">142°C</span></div>
+</div>
+</foreignobject>
+</svg>
+<!-- X Axis Labels -->
+<div class="flex justify-between text-xs text-slate-400 mt-2 font-mono">
+<span>00:00</span>
+<span>04:00</span>
+<span>08:00</span>
+<span>12:00</span>
+<span>16:00</span>
+<span>20:00</span>
+<span>24:00</span>
+</div>
+</div>
+</section>
+<!-- Middle Section: Analytics Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Correlation Matrix -->
+<div class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm p-6 flex flex-col">
+<div class="flex items-start justify-between mb-6">
+<div>
+<h3 class="font-semibold text-slate-900 dark:text-white">Correlation Matrix</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400">Parameter relationships heatmap</p>
+</div>
+<button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+<span class="material-symbols-outlined text-xl">info</span>
+</button>
+</div>
+<div class="flex-1 flex flex-col justify-center items-center">
+<div class="grid grid-cols-4 gap-1 w-full max-w-[320px]">
+<!-- Headers -->
+<div class="h-10"></div>
+<div class="h-10 flex items-end justify-center text-xs font-bold text-slate-500 pb-2">Pres</div>
+<div class="h-10 flex items-end justify-center text-xs font-bold text-slate-500 pb-2">Temp</div>
+<div class="h-10 flex items-end justify-center text-xs font-bold text-slate-500 pb-2">Flow</div>
+<!-- Row 1 -->
+<div class="h-16 flex items-center justify-end text-xs font-bold text-slate-500 pr-2">Pres</div>
+<div class="h-16 bg-blue-600 rounded flex items-center justify-center text-white text-sm font-bold">1.0</div>
+<div class="h-16 bg-blue-400 rounded flex items-center justify-center text-white text-sm font-bold">0.85</div>
+<div class="h-16 bg-blue-200 rounded flex items-center justify-center text-blue-900 text-sm font-bold">0.32</div>
+<!-- Row 2 -->
+<div class="h-16 flex items-center justify-end text-xs font-bold text-slate-500 pr-2">Temp</div>
+<div class="h-16 bg-blue-400 rounded flex items-center justify-center text-white text-sm font-bold">0.85</div>
+<div class="h-16 bg-blue-600 rounded flex items-center justify-center text-white text-sm font-bold">1.0</div>
+<div class="h-16 bg-blue-100 rounded flex items-center justify-center text-blue-900 text-sm font-bold">0.15</div>
+<!-- Row 3 -->
+<div class="h-16 flex items-center justify-end text-xs font-bold text-slate-500 pr-2">Flow</div>
+<div class="h-16 bg-blue-200 rounded flex items-center justify-center text-blue-900 text-sm font-bold">0.32</div>
+<div class="h-16 bg-blue-100 rounded flex items-center justify-center text-blue-900 text-sm font-bold">0.15</div>
+<div class="h-16 bg-blue-600 rounded flex items-center justify-center text-white text-sm font-bold">1.0</div>
+</div>
+<div class="w-full max-w-[320px] flex items-center gap-2 mt-4">
+<span class="text-[10px] text-slate-400">Weak</span>
+<div class="h-2 flex-1 rounded-full bg-gradient-to-r from-blue-100 to-blue-600"></div>
+<span class="text-[10px] text-slate-400">Strong</span>
+</div>
+</div>
+</div>
+<!-- Type Comparison Bar Chart -->
+<div class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm p-6 flex flex-col lg:col-span-2">
+<div class="flex items-start justify-between mb-6">
+<div>
+<h3 class="font-semibold text-slate-900 dark:text-white">Type Efficiency Comparison</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400">Reactor vs Distiller Performance Output</p>
+</div>
+<div class="flex gap-2">
+<span class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+<span class="size-3 bg-slate-800 dark:bg-slate-200 rounded-sm"></span> Reactor
+                        </span>
+<span class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+<span class="size-3 bg-primary rounded-sm"></span> Distiller
+                        </span>
+</div>
+</div>
+<div class="flex-1 flex items-end justify-around gap-4 px-4 h-[250px] border-b border-slate-200 dark:border-slate-700 relative">
+<!-- Background Grid -->
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8">
+<div class="border-b border-dashed border-slate-200 dark:border-slate-800 w-full h-0"></div>
+<div class="border-b border-dashed border-slate-200 dark:border-slate-800 w-full h-0"></div>
+<div class="border-b border-dashed border-slate-200 dark:border-slate-800 w-full h-0"></div>
+<div class="border-b border-dashed border-slate-200 dark:border-slate-800 w-full h-0"></div>
+</div>
+<!-- Group 1 -->
+<div class="flex gap-2 items-end h-full pt-8 group cursor-pointer relative z-10">
+<div class="w-8 md:w-12 bg-slate-800 dark:bg-slate-300 rounded-t h-[65%] group-hover:opacity-90 transition-opacity relative">
+<span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-mono font-bold text-slate-800 dark:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity">65%</span>
+</div>
+<div class="w-8 md:w-12 bg-primary rounded-t h-[82%] group-hover:opacity-90 transition-opacity relative">
+<span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-mono font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">82%</span>
+</div>
+</div>
+<!-- Group 2 -->
+<div class="flex gap-2 items-end h-full pt-8 group cursor-pointer relative z-10">
+<div class="w-8 md:w-12 bg-slate-800 dark:bg-slate-300 rounded-t h-[45%] group-hover:opacity-90 transition-opacity relative">
+<span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-mono font-bold text-slate-800 dark:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity">45%</span>
+</div>
+<div class="w-8 md:w-12 bg-primary rounded-t h-[70%] group-hover:opacity-90 transition-opacity relative">
+<span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-mono font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">70%</span>
+</div>
+</div>
+<!-- Group 3 -->
+<div class="flex gap-2 items-end h-full pt-8 group cursor-pointer relative z-10">
+<div class="w-8 md:w-12 bg-slate-800 dark:bg-slate-300 rounded-t h-[78%] group-hover:opacity-90 transition-opacity relative">
+<span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-mono font-bold text-slate-800 dark:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity">78%</span>
+</div>
+<div class="w-8 md:w-12 bg-primary rounded-t h-[60%] group-hover:opacity-90 transition-opacity relative">
+<span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-mono font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">60%</span>
+</div>
+</div>
+<!-- Group 4 -->
+<div class="flex gap-2 items-end h-full pt-8 group cursor-pointer relative z-10">
+<div class="w-8 md:w-12 bg-slate-800 dark:bg-slate-300 rounded-t h-[55%] group-hover:opacity-90 transition-opacity relative">
+<span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-mono font-bold text-slate-800 dark:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity">55%</span>
+</div>
+<div class="w-8 md:w-12 bg-primary rounded-t h-[90%] group-hover:opacity-90 transition-opacity relative">
+<span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-mono font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">90%</span>
+</div>
+</div>
+</div>
+<div class="flex justify-around px-4 pt-4">
+<span class="text-xs font-bold text-slate-500">Unit A</span>
+<span class="text-xs font-bold text-slate-500">Unit B</span>
+<span class="text-xs font-bold text-slate-500">Unit C</span>
+<span class="text-xs font-bold text-slate-500">Unit D</span>
+</div>
+</div>
+</div>
+<!-- Data Table Section -->
+<section class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm flex flex-col flex-1 overflow-hidden">
+<!-- Table Header / Toolbar -->
+<div class="px-6 py-4 border-b border-border-light dark:border-border-dark flex flex-col sm:flex-row justify-between items-center gap-4">
+<div class="flex items-center gap-3">
+<h3 class="font-semibold text-slate-900 dark:text-white">Equipment Data Log</h3>
+<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">124 Items</span>
+</div>
+<div class="flex items-center gap-3 w-full sm:w-auto">
+<div class="relative flex-1 sm:flex-initial group">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 group-focus-within:text-primary text-[20px]">search</span>
+<input class="w-full sm:w-64 pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" placeholder="Search ID or Name..." type="text"/>
+</div>
+<button class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                        Filter
+                    </button>
+<button class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined text-[18px]">view_column</span>
+</button>
+</div>
+</div>
+<!-- Table Container -->
+<div class="overflow-x-auto custom-scrollbar flex-1">
+<table class="w-full text-left text-sm border-collapse">
+<thead class="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10 text-xs uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
+<tr>
+<th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700 w-16">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/>
+</th>
+<th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700 cursor-pointer group hover:text-slate-700 dark:hover:text-slate-200">
+<div class="flex items-center gap-1">Equipment ID <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity">arrow_downward</span></div>
+</th>
+<th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700">Type</th>
+<th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700">Timestamp</th>
+<th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700 text-right">Inlet Temp (°C)</th>
+<th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700 text-right">Pressure (PSI)</th>
+<th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700 text-right">Flowrate (L/m)</th>
+<th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700 text-center">Health</th>
+<th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+<!-- Row 1 -->
+<tr class="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors group">
+<td class="px-6 py-3 font-medium"><input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="px-6 py-3 font-mono font-medium text-slate-900 dark:text-white">EQ-2049-A</td>
+<td class="px-6 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">Reactor</span></td>
+<td class="px-6 py-3 text-slate-500 font-tabular text-xs">Oct 24, 14:20:05</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">142.5</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">2,405</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">842.1</td>
+<td class="px-6 py-3 text-center">
+<div class="inline-flex items-center justify-center size-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+</td>
+<td class="px-6 py-3 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-[20px]">more_horiz</span></button>
+</td>
+</tr>
+<!-- Row 2 (Zebra) -->
+<tr class="bg-slate-50/50 dark:bg-slate-800/20 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors group">
+<td class="px-6 py-3 font-medium"><input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="px-6 py-3 font-mono font-medium text-slate-900 dark:text-white">EQ-3310-B</td>
+<td class="px-6 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">Distiller</span></td>
+<td class="px-6 py-3 text-slate-500 font-tabular text-xs">Oct 24, 14:19:42</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">185.0</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">3,100</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">620.4</td>
+<td class="px-6 py-3 text-center">
+<div class="inline-flex items-center justify-center size-6 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 tooltip" title="Pressure rising">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+</div>
+</td>
+<td class="px-6 py-3 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-[20px]">more_horiz</span></button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors group">
+<td class="px-6 py-3 font-medium"><input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="px-6 py-3 font-mono font-medium text-slate-900 dark:text-white">EQ-1102-C</td>
+<td class="px-6 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300">Mixer</span></td>
+<td class="px-6 py-3 text-slate-500 font-tabular text-xs">Oct 24, 14:18:15</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">98.2</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">1,200</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">415.8</td>
+<td class="px-6 py-3 text-center">
+<div class="inline-flex items-center justify-center size-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+</td>
+<td class="px-6 py-3 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-[20px]">more_horiz</span></button>
+</td>
+</tr>
+<!-- Row 4 (Critical) -->
+<tr class="bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors border-l-2 border-l-red-500 group">
+<td class="px-6 py-3 font-medium"><input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="px-6 py-3 font-mono font-medium text-slate-900 dark:text-white">EQ-5591-X</td>
+<td class="px-6 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">Reactor</span></td>
+<td class="px-6 py-3 text-slate-500 font-tabular text-xs">Oct 24, 14:15:00</td>
+<td class="px-6 py-3 text-right font-mono text-red-600 font-bold">210.4</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">2,850</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">120.1</td>
+<td class="px-6 py-3 text-center">
+<div class="inline-flex items-center justify-center size-6 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+<span class="material-symbols-outlined text-[16px]">error</span>
+</div>
+</td>
+<td class="px-6 py-3 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-[20px]">more_horiz</span></button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors group">
+<td class="px-6 py-3 font-medium"><input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="px-6 py-3 font-mono font-medium text-slate-900 dark:text-white">EQ-2055-A</td>
+<td class="px-6 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">Reactor</span></td>
+<td class="px-6 py-3 text-slate-500 font-tabular text-xs">Oct 24, 14:12:30</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">141.2</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">2,398</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">839.5</td>
+<td class="px-6 py-3 text-center">
+<div class="inline-flex items-center justify-center size-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+</td>
+<td class="px-6 py-3 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-[20px]">more_horiz</span></button>
+</td>
+</tr>
+<!-- Row 6 (Zebra) -->
+<tr class="bg-slate-50/50 dark:bg-slate-800/20 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors group">
+<td class="px-6 py-3 font-medium"><input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="px-6 py-3 font-mono font-medium text-slate-900 dark:text-white">EQ-3312-B</td>
+<td class="px-6 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">Distiller</span></td>
+<td class="px-6 py-3 text-slate-500 font-tabular text-xs">Oct 24, 14:10:12</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">184.2</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">3,095</td>
+<td class="px-6 py-3 text-right font-mono text-slate-700 dark:text-slate-300">622.1</td>
+<td class="px-6 py-3 text-center">
+<div class="inline-flex items-center justify-center size-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+</td>
+<td class="px-6 py-3 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-[20px]">more_horiz</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer -->
+<div class="px-6 py-3 border-t border-border-light dark:border-border-dark flex items-center justify-between">
+<div class="text-xs text-slate-500 dark:text-slate-400">
+                    Showing <span class="font-medium text-slate-900 dark:text-white">1</span> to <span class="font-medium text-slate-900 dark:text-white">6</span> of <span class="font-medium text-slate-900 dark:text-white">124</span> results
+                </div>
+<div class="flex gap-2">
+<button class="px-3 py-1 text-sm border border-slate-200 dark:border-slate-700 rounded hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 text-slate-600 dark:text-slate-300" disabled="">Previous</button>
+<button class="px-3 py-1 text-sm border border-slate-200 dark:border-slate-700 rounded hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300">Next</button>
+</div>
+</div>
+</section>
+</main>
+</body></html>
