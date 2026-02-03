@@ -478,8 +478,12 @@ class PDFReportView(APIView):
             p = canvas.Canvas(response, pagesize=A4)
             width, height = A4
             
-            stats = instance.summary
-            processed_data = instance.processed_data
+            # Use serializer to get freshly calculated data (respecting current thresholds)
+            serializer = UploadedFileSerializer(instance, context={'request': request})
+            serialized_data = serializer.data
+            stats = serialized_data['summary']
+            processed_data = serialized_data['processed_data']
+            
             df = pd.DataFrame(processed_data)
             
             # --- PAGE 1: Summary ---

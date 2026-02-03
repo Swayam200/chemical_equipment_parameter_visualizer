@@ -147,6 +147,64 @@ const AdvancedAnalyticsPage = ({ data, theme = 'dark' }) => {
         }
     }, [summary, colors]);
 
+    // --- Export Handler (Fixed) ---
+    const handleExport = async () => {
+        console.log("Analytics Export triggered. Data object:", data);
+
+        if (!data?.id) {
+            console.error("Export failed: missing data.id");
+            alert("Error: No report ID found. Please try uploading the file again.");
+            return;
+        }
+
+        // Ask user if they want AI summary
+        const wantSummary = window.confirm("Would you like to include a fresh AI-generated executive summary in the PDF?\n(This takes a few seconds provided by our intelligent engine)");
+        console.log("User wantSummary:", wantSummary);
+
+        try {
+            if (wantSummary) {
+                try {
+                    console.log("Starting AI Summary generation...");
+                    const context = {
+                        summary: summary,
+                    };
+                    const query = "Generate a professional executive summary for this equipment data report. Highlight key statistics, the number of outliers, and the general health of the system. Keep it concise (approx 150 words) and suitable for a formal PDF report.";
+
+                    const aiResponse = await queryAI(context, query);
+                    console.log("AI Response received:", aiResponse);
+
+                    // 2. Save to Backend
+                    if (aiResponse && !aiResponse.startsWith("Error:")) {
+                        await api.saveAISummary(data.id, aiResponse);
+                        console.log("AI Summary saved to backend.");
+                    } else {
+                        console.warn("AI Generation failed or returned error:", aiResponse);
+                        alert("AI Summary generation encountered an issue, but the PDF will still be downloaded.");
+                    }
+                } catch (aiError) {
+                    console.error("AI Summary generation failed:", aiError);
+                    alert("Failed to generate AI summary. Downloading report without it.");
+                }
+            }
+
+            // 3. Download PDF (Proceeds regardless of AI success)
+            console.log("Requesting PDF download for ID:", data.id);
+            const response = await api.get(`/report/${data.id}/`, { responseType: 'blob' });
+            console.log("PDF Blob received, size:", response.data.size);
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `analytics_report_${data.id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            console.log("Download link clicked and removed.");
+        } catch (error) {
+            console.error("Export logic failed:", error);
+            alert("Failed to download export. Please check console for details.");
+        }
+    };
 
     return (
         <>
@@ -195,7 +253,9 @@ const AdvancedAnalyticsPage = ({ data, theme = 'dark' }) => {
                         </div>
                     )}
 
-                    <button className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg shadow-sm transition-colors text-sm font-medium">
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg shadow-sm transition-colors text-sm font-medium">
                         <span className="material-symbols-outlined text-[18px]">download</span>
                         Export Report
                     </button>
