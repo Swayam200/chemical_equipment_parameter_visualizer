@@ -5,11 +5,17 @@ from django.dispatch import receiver
 from django.db.models.signals import post_delete
 
 class UploadedFile(models.Model):
+    """
+    Represents a CSV file uploaded by a user.
+    Stores metadata, calculated summaries, and processed data json.
+    AUTO-DELETION: Only the last 5 uploads per user are kept.
+    """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploads')
     file = models.FileField(upload_to='uploads/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
     summary = models.JSONField(default=dict)  # Stores calculated stats
     processed_data = models.JSONField(default=list)  # Stores the parsed CSV rows
+    ai_summary_text = models.TextField(blank=True, null=True) # AI generated insights
     user_upload_index = models.PositiveIntegerField(blank=True, null=True, editable=False)
 
     def save(self, *args, **kwargs):

@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import api, { formatErrorMessage, MAX_FILE_SIZE, MAX_FILE_SIZE_DISPLAY } from '../api';
-import { FaCloudUploadAlt, FaSpinner, FaCheckCircle, FaExclamationCircle, FaFile } from 'react-icons/fa';
 
 const FileUpload = ({ onUploadSuccess }) => {
     const [uploading, setUploading] = useState(false);
@@ -17,7 +16,6 @@ const FileUpload = ({ onUploadSuccess }) => {
     };
 
     const onDrop = useCallback(async (acceptedFiles, rejectedFiles) => {
-        // Handle rejected files (wrong type)
         if (rejectedFiles.length > 0) {
             const rejection = rejectedFiles[0];
             if (rejection.errors[0]?.code === 'file-invalid-type') {
@@ -31,7 +29,6 @@ const FileUpload = ({ onUploadSuccess }) => {
         const file = acceptedFiles[0];
         if (!file) return;
 
-        // File size validation
         if (file.size > MAX_FILE_SIZE) {
             setError(`File too large (${formatFileSize(file.size)}). Maximum size is ${MAX_FILE_SIZE_DISPLAY}.`);
             return;
@@ -80,62 +77,51 @@ const FileUpload = ({ onUploadSuccess }) => {
     });
 
     return (
-        <div className="glass-card">
-            <h2>Upload Data</h2>
+        <div className="w-full">
             <div
                 {...getRootProps()}
-                className={`dropzone ${isDragActive ? 'active' : ''}`}
+                className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all ${isDragActive
+                        ? 'border-primary bg-primary/10'
+                        : 'border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-primary/50 dark:hover:border-primary/50'
+                    }`}
             >
                 <input {...getInputProps()} />
                 {uploading ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '100%' }}>
-                        <FaSpinner className="spin" size={32} />
-                        <p style={{ margin: 0 }}>
-                            <FaFile style={{ marginRight: '8px' }} />
+                    <div className="flex flex-col items-center gap-3">
+                        <span className="material-symbols-outlined text-4xl text-primary animate-spin">progress_activity</span>
+                        <p className="font-medium text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-base">description</span>
                             {fileName}
                         </p>
 
-                        {/* Progress Bar */}
-                        <div style={{
-                            width: '80%',
-                            maxWidth: '300px',
-                            height: '8px',
-                            backgroundColor: 'var(--border-color)',
-                            borderRadius: '4px',
-                            overflow: 'hidden'
-                        }}>
-                            <div style={{
-                                width: `${uploadProgress}%`,
-                                height: '100%',
-                                backgroundColor: 'var(--accent-color)',
-                                transition: 'width 0.3s ease',
-                                borderRadius: '4px'
-                            }} />
+                        <div className="w-full max-w-xs h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mt-2">
+                            <div
+                                className="h-full bg-primary transition-all duration-300 rounded-full"
+                                style={{ width: `${uploadProgress}%` }}
+                            />
                         </div>
-                        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                             {uploadProgress < 100 ? `Uploading... ${uploadProgress}%` : 'Processing data...'}
                         </p>
                     </div>
                 ) : success ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', color: 'var(--success)' }}>
-                        <FaCheckCircle size={32} />
-                        <p>Upload Successful!</p>
+                    <div className="flex flex-col items-center gap-2 text-green-600 dark:text-green-500">
+                        <span className="material-symbols-outlined text-4xl">check_circle</span>
+                        <p className="font-semibold">Upload Successful!</p>
                     </div>
                 ) : error ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', color: 'var(--danger)' }}>
-                        <FaExclamationCircle size={32} />
-                        <p style={{ textAlign: 'center', maxWidth: '400px' }}>{error}</p>
-                        <p style={{ fontSize: '0.8rem' }}>Click to try again</p>
+                    <div className="flex flex-col items-center gap-2 text-red-600 dark:text-red-500">
+                        <span className="material-symbols-outlined text-4xl">error</span>
+                        <p className="font-medium max-w-xs">{error}</p>
+                        <p className="text-xs opacity-75">Click to try again</p>
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                        <FaCloudUploadAlt size={48} />
-                        <p>Drag & drop a CSV file here, or click to select</p>
-                        <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                            Requires columns: Equipment Name, Type, Flowrate, Pressure, Temperature
-                        </p>
-                        <p style={{ fontSize: '0.75rem', opacity: 0.5, marginTop: '8px' }}>
-                            Maximum file size: {MAX_FILE_SIZE_DISPLAY}
+                    <div className="flex flex-col items-center gap-3">
+                        <span className="material-symbols-outlined text-5xl text-slate-400 dark:text-slate-500 mb-2">cloud_upload</span>
+                        <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Drag & drop CSV file</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">or click to browse</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-4">
+                            Max size: {MAX_FILE_SIZE_DISPLAY}
                         </p>
                     </div>
                 )}

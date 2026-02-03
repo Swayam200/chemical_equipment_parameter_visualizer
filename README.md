@@ -1,6 +1,6 @@
 # Chemical Equipment Parameter Visualizer
 
-A hybrid Web and Desktop application for analyzing chemical equipment data with advanced analytics, outlier detection, and health status monitoring.
+A hybrid Web and Desktop application for analyzing chemical equipment data with advanced analytics, outlier detection, and AI-powered insights.
 
 ![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8+-green)
@@ -19,10 +19,9 @@ A hybrid Web and Desktop application for analyzing chemical equipment data with 
 
 | Component | Description |
 |-----------|-------------|
-| [Backend README](backend/README.md) | API endpoints, admin panel, threshold configuration |
-| [Web Frontend README](web-frontend/README.md) | Features, user guide, chart interactions |
-| [Desktop Frontend README](desktop-frontend/README.md) | Features, toolbar usage, platform notes |
-| [Threshold Configuration](backend/threshold_config.md) | In-depth threshold customization guide |
+| [Backend README](backend/README.md) | API endpoints, admin panel, deployment guide |
+| [Web Frontend README](web-frontend/README.md) | User guide, Vercel deployment, usage |
+| [Desktop Frontend README](desktop-frontend/README.md) | Installation, usage, features |
 
 ---
 
@@ -73,10 +72,23 @@ npm run dev
 
 Web app runs at: **http://localhost:5173**
 
-### 3. Desktop App Setup
+### 3. AI Features Setup (Optional)
+
+To enable AI insights (OpenRouter), configure the frontend:
+
+1.  Get an API Key from [OpenRouter.ai](https://openrouter.ai/).
+2.  Create/Edit `web-frontend/.env`:
+    ```env
+    VITE_OPENROUTER_API_KEY=sk-or-v1-your-key-here...
+    VITE_AI_MODEL=google/gemini-2.0-flash-lite-preview-02-05:free
+    ```
+3.  Restart the frontend server.
+
+### 4. Desktop App Setup
 
 ```bash
 cd desktop-frontend
+pip install -r dict_requirements.txt # If distinct, otherwise uses root requirements
 pip install -r requirements.txt
 python main.py
 ```
@@ -91,14 +103,14 @@ python main.py
 - Per-user data isolation
 
 ### Data Analysis
-- **CSV Upload**: Drag & drop with 5 MB limit, progress bar
+- **CSV Upload**: Drag & drop support
 - **Real-time Processing**: Pandas-based statistical analysis
-- **5 Advanced Analytics**:
+- **Advanced Analytics**:
   1. Outlier Detection (IQR method)
   2. Type Comparison Charts
   3. Correlation Matrix
-  4. Enhanced Statistics
-  5. Health Status Classification
+  4. Health Status Classification
+  5. **AI Insights**: Natural language analysis of equipment data
 
 ### Interactive Visualizations
 - **Web**: Chart.js with zoom/pan, enhanced tooltips
@@ -131,93 +143,12 @@ OUTLIER_IQR_MULTIPLIER=1.5
 
 **Note:** Restart backend after changes. Old uploads auto-recalculate with new thresholds!
 
-See [Threshold Configuration Guide](backend/threshold_config.md) for detailed examples.
-
 ### Admin Panel
 
 Visit: **http://127.0.0.1:8000/admin/**
-
-Use credentials from `.env` to manage users and uploads.
-
----
-
-## 📊 API Endpoints
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/register/` | No | Create account |
-| POST | `/api/login/` | No | Get JWT tokens |
-| POST | `/api/token/refresh/` | No | Refresh token |
-| POST | `/api/upload/` | Yes | Upload CSV |
-| GET | `/api/history/` | Yes | Last 5 uploads |
-| GET | `/api/report/<id>/` | Yes | Download PDF |
-
-**Auth Header:** `Authorization: Bearer <token>`
-
----
-
-## 🧪 Sample Data Format
-
-```csv
-Equipment Name,Type,Flowrate,Pressure,Temperature
-Pump-001,Pump,45.2,150.5,75.3
-Reactor-A1,Reactor,120.0,300.0,185.0
-```
-
-**Required columns:**
-- Equipment Name (string)
-- Type (string)
-- Flowrate, Pressure, Temperature (numeric)
-
----
-
-## 🐛 Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| Port 8000 in use | `lsof -ti:8000 | xargs kill -9` |
-| CORS errors | Check `CORS_ALLOWED_ORIGINS` in `.env` |
-| Charts not rendering | Check browser console / reinstall npm packages |
-| Desktop connection error | Ensure backend is running |
-
-See individual README files for detailed troubleshooting.
-
----
-
-## 📦 Tech Stack
-
-### Backend
-- Django 5.0 + REST Framework
-- SimpleJWT authentication
-- Pandas, ReportLab, Matplotlib
-
-### Web Frontend
-- React 18 + Vite
-- Chart.js with zoom plugin
-- Axios with auto-refresh
-
-### Desktop Frontend
-- PyQt5
-- Matplotlib with interactive toolbar
-- Requests
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
 
 ---
 
 ## 📝 License
 
 Developed as part of the FOSSEE internship screening task.
-
----
-
-**Version:** 1.1.0  
-**Last Updated:** January 2026

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { FaLock, FaUserPlus, FaSun, FaMoon } from 'react-icons/fa';
 import api from '../api';
 import loginBg from '../assets/images/chemical_plant_login.jpg';
 
@@ -23,13 +22,9 @@ const Login = ({ onLogin, theme, toggleTheme }) => {
 
     try {
       const response = await api.post('login/', { username, password });
-
-      // Store JWT token and username
       localStorage.setItem('access_token', response.data.access);
       localStorage.setItem('refresh_token', response.data.refresh);
       localStorage.setItem('username', username);
-
-      // Notify parent
       onLogin();
     } catch (err) {
       console.error(err);
@@ -42,17 +37,14 @@ const Login = ({ onLogin, theme, toggleTheme }) => {
     setError(null);
     setSuccess(null);
 
-    // Validation
     if (!username || !email || !password || !confirmPassword) {
       setError("All fields are required");
       return;
     }
-
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-
     if (password.length < 8) {
       setError("Password must be at least 8 characters");
       return;
@@ -60,15 +52,10 @@ const Login = ({ onLogin, theme, toggleTheme }) => {
 
     try {
       const response = await api.post('register/', { username, email, password });
-
-      // Store JWT token and username
       localStorage.setItem('access_token', response.data.access);
       localStorage.setItem('refresh_token', response.data.refresh);
       localStorage.setItem('username', username);
-
       setSuccess("Registration successful! Logging you in...");
-
-      // Auto-login after 1 second
       setTimeout(() => {
         onLogin();
       }, 1000);
@@ -82,198 +69,115 @@ const Login = ({ onLogin, theme, toggleTheme }) => {
     setIsRegisterMode(!isRegisterMode);
     setError(null);
     setSuccess(null);
-    setUsername('');
-    setEmail('');
-    setPassword('');
-    setConfirmPassword('');
   };
 
   return (
-    <div style={{
-      height: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundImage: theme === 'light'
-        ? `linear-gradient(rgba(240, 244, 248, 0.85), rgba(240, 244, 248, 0.92)), url(${loginBg})`
-        : `linear-gradient(rgba(11, 12, 16, 0.8), rgba(11, 12, 16, 0.9)), url(${loginBg})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundAttachment: 'fixed',
-      position: 'relative'
-    }}>
-      {/* Theme Toggle Button */}
+    <div className="min-h-screen flex items-center justify-center relative bg-cover bg-center" style={{ backgroundImage: `url(${loginBg})` }}>
+      <div className={`absolute inset-0 ${theme === 'light' ? 'bg-slate-50/90' : 'bg-slate-900/90'}`}></div>
+
       {toggleTheme && (
         <button
           onClick={toggleTheme}
-          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'var(--card-bg)',
-            border: '1px solid var(--accent-color)',
-            color: 'var(--accent-color)',
-            width: '42px',
-            height: '42px',
-            borderRadius: '2px',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            backdropFilter: 'blur(8px)'
-          }}
+          className="absolute top-5 right-5 z-20 p-2 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all"
         >
-          {theme === 'dark' ? <FaSun size={18} /> : <FaMoon size={18} />}
+          {theme === 'dark' ? <span className="material-symbols-outlined">light_mode</span> : <span className="material-symbols-outlined">dark_mode</span>}
         </button>
       )}
 
-      <div className="glass-card" style={{
-        width: '400px',
-        textAlign: 'center',
-        padding: '32px',
-        border: '1px solid var(--accent-color)',
-        boxShadow: 'var(--card-hover-shadow)'
-      }}>
-        <div style={{ marginBottom: '24px', color: 'var(--accent-color)' }}>
-          {isRegisterMode ? <FaUserPlus size={48} /> : <FaLock size={48} />}
+      <div className="relative z-10 w-full max-w-md p-8 bg-white dark:bg-slate-850/90 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700">
+        <div className="text-center mb-8">
+          {/* Circular Container with simplified padding to ensure logo fills it nicely */}
+          <div className="inline-block p-1 rounded-full bg-white ring-4 ring-primary/10 mb-4 shadow-lg overflow-hidden">
+            <img src="/logo.png" alt="Carbon Sleuth Logo" className="w-28 h-28 object-cover rounded-full" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            {isRegisterMode ? 'Create Account' : 'Welcome Back'}
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">
+            {isRegisterMode ? 'Join the authorized personnel registry' : 'Enter your credentials to access the terminal'}
+          </p>
         </div>
 
-        <h2 style={{
-          fontSize: '1.8rem',
-          marginBottom: '8px',
-          borderLeft: 'none',
-          paddingLeft: 0,
-          textShadow: `0 0 10px var(--glow-color)`
-        }}>
-          {isRegisterMode ? 'INITIATE ACCESS' : 'SYSTEM LOGIN'}
-        </h2>
-
-        <p style={{
-          color: 'var(--text-secondary)',
-          marginBottom: '32px',
-          fontFamily: 'var(--font-family)',
-          fontSize: '0.85rem',
-          letterSpacing: '1px'
-        }}>
-          {isRegisterMode
-            ? 'CREATE AUTHORIZED PERSONNEL CREDENTIALS'
-            : 'AUTHENTICATION REQUIRED FOR TERMINAL ACCESS'}
-        </p>
-
-        <form onSubmit={isRegisterMode ? handleRegister : handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ position: 'relative' }}>
+        <form onSubmit={isRegisterMode ? handleRegister : handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Username</label>
             <input
               type="text"
-              placeholder="USERNAME"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '14px',
-                background: 'var(--input-bg)',
-                boxSizing: 'border-box'
-              }}
+              className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-slate-900 dark:text-white transition-all"
+              placeholder="Enter username"
             />
           </div>
 
           {isRegisterMode && (
-            <div style={{ position: 'relative' }}>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Email</label>
               <input
                 type="email"
-                placeholder="EMAIL ADDRESS"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  background: 'var(--input-bg)',
-                  boxSizing: 'border-box'
-                }}
+                className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-slate-900 dark:text-white transition-all"
+                placeholder="name@company.com"
               />
             </div>
           )}
 
-          <div style={{ position: 'relative' }}>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Password</label>
             <input
               type="password"
-              placeholder="PASSWORD"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '14px',
-                background: 'var(--input-bg)',
-                boxSizing: 'border-box'
-              }}
+              className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-slate-900 dark:text-white transition-all"
+              placeholder="••••••••"
             />
           </div>
 
           {isRegisterMode && (
-            <div style={{ position: 'relative' }}>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Confirm Password</label>
               <input
                 type="password"
-                placeholder="CONFIRM CREDENTIALS"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  background: 'var(--input-bg)',
-                  boxSizing: 'border-box'
-                }}
+                className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-slate-900 dark:text-white transition-all"
+                placeholder="••••••••"
               />
             </div>
           )}
 
           {error && (
-            <div style={{
-              color: 'var(--danger)',
-              fontSize: '0.8rem',
-              fontFamily: 'var(--font-family)',
-              border: '1px solid var(--danger)',
-              padding: '8px',
-              background: 'rgba(252, 32, 68, 0.1)'
-            }}>
-              ERROR: {error.toUpperCase()}
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-xs font-medium flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">error</span>
+              {error}
             </div>
           )}
 
           {success && (
-            <div style={{
-              color: 'var(--success)',
-              fontSize: '0.8rem',
-              fontFamily: 'var(--font-family)',
-              border: '1px solid var(--success)',
-              padding: '8px',
-              background: 'rgba(32, 252, 143, 0.1)'
-            }}>
-              SUCCESS: {success.toUpperCase()}
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-600 dark:text-green-400 text-xs font-medium flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">check_circle</span>
+              {success}
             </div>
           )}
 
-          <button type="submit" className="btn" style={{ marginTop: '8px' }}>
-            {isRegisterMode ? 'ESTABLISH LINK' : 'ACCESS TERMINAL'}
+          <button
+            type="submit"
+            className="w-full py-2.5 bg-primary hover:bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-blue-500/30 transition-all transform active:scale-95"
+          >
+            {isRegisterMode ? 'Register Account' : 'Sign In'}
           </button>
         </form>
 
-        <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontFamily: 'var(--font-family)' }}>
-            {isRegisterMode ? 'EXISTING PERSONNEL?' : "NEW PERSONNEL?"}{' '}
-            <span
+        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 text-center">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {isRegisterMode ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
               onClick={toggleMode}
-              style={{
-                color: 'var(--accent-color)',
-                cursor: 'pointer',
-                textDecoration: 'none',
-                fontWeight: 'bold',
-                marginLeft: '8px',
-                borderBottom: '1px dashed var(--accent-color)'
-              }}
+              className="text-primary font-semibold hover:underline"
             >
-              {isRegisterMode ? 'LOGIN' : 'REGISTER'}
-            </span>
+              {isRegisterMode ? 'Sign In' : 'Create Account'}
+            </button>
           </p>
         </div>
       </div>

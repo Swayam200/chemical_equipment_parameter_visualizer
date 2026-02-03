@@ -53,6 +53,19 @@ class LoginDialog(QDialog):
         container_layout.setContentsMargins(30, 40, 30, 40)
         container_layout.setSpacing(15)
 
+        # Logo
+        logo_label = QLabel()
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets', 'logo.png')
+        if os.path.exists(logo_path):
+            from PyQt5.QtGui import QPixmap, QImage
+            # Load and scale logo
+            pixmap = QPixmap(logo_path)
+            if not pixmap.isNull():
+                 scaled = pixmap.scaled(200, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                 logo_label.setPixmap(scaled)
+                 logo_label.setAlignment(Qt.AlignCenter)
+                 container_layout.addWidget(logo_label)
+
         # Header
         header_label = QLabel("SYSTEM ACCESS")
         header_label.setAlignment(Qt.AlignCenter)
