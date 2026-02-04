@@ -1,0 +1,21 @@
+Equipment Name,Type,Flowrate,Pressure,Temperature
+Reactor-1,Reactor,424.92,41.1,170.8
+Reactor-2,Reactor,231.54,32.7,199.1
+Pump-3,Pump,211.32,17.2,202.0
+Compressor-4,Compressor,337.78,34.3,183.2
+Reactor-5,Reactor,259.46,13.1,236.1
+Compressor-6,Compressor,299.1,25.7,248.1
+Condenser-7,Condenser,435.16,10.2,265.0
+Compressor-8,Compressor,476.84,39.0,247.9
+Condenser-9,Condenser,290.05,46.5,287.6
+Reactor-10,Reactor,230.75,31.0,178.0
+Reactor-11,Reactor,215.41,27.6,265.5
+Pump-12,Pump,319.63,33.0,156.0
+Pump-13,Pump,441.96,42.5,184.8
+Valve-14,Valve,420.15,38.8,195.0
+Pump-15,Pump,498.2,43.7,279.7
+Reactor-16,Reactor,221.68,41.2,220.9
+Pump-17,Pump,353.62,26.2,190.9
+Pump-18,Pump,425.73,17.2,152.4
+Condenser-19,Condenser,422.56,32.2,299.1
+Reactor-20,Reactor,481.08,19.5,252.5

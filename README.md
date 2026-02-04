@@ -1,4 +1,12 @@
-# Chemical Equipment Parameter Visualizer
+# Carbon Sleuth 🕵️‍♂️
+
+<div align="center">
+  <img src="web-frontend/public/logo.png" alt="Carbon Sleuth Logo" width="200"/>
+  <br>
+  <em>Advanced Industrial Parameter Analysis & Anomaly Detection</em>
+</div>
+
+<br>
 
 A hybrid Web and Desktop application for analyzing chemical equipment data with advanced analytics, outlier detection, and AI-powered insights.
 

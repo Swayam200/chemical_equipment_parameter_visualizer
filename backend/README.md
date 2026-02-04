@@ -1,6 +1,6 @@
-# Backend - Chemical Equipment Parameter Visualizer
+# Carbon Sleuth - Backend Engine
 
-Django REST Framework API with JWT authentication, data processing, and PDF report generation.
+Django REST Framework API serving as the core engine for Carbon Sleuth. Handles data processing, outlier detection algorithms, and PDF report generation.
 
 ## Table of Contents
 

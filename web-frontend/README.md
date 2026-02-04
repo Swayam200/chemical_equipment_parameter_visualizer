@@ -1,6 +1,6 @@
-# Web Frontend - Chemical Equipment Parameter Visualizer
+# Carbon Sleuth - Web Portal
 
-React-based web application for analyzing and visualizing chemical equipment data with advanced analytics and AI insights.
+Modern React-based web interface for **Carbon Sleuth**. Features interactive dashboards, deep-dive analytics, and AI-powered equipment diagnostics.
 
 ## Technology Stack
 

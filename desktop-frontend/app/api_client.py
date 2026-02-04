@@ -17,9 +17,9 @@ class ApiClient:
     def __init__(self, base_url: str = DEFAULT_API_URL):
         """
         Initialize the API client.
-        :param base_url: The root URL of the backend API (e.g., http://localhost:8000/api)
+        :param base_url: The root URL of the backend API (e.g., http://localhost:8000/api/)
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip('/') + '/'
         self.auth_header: Optional[str] = None # Keeping original auth_header for consistency with other methods
         # self.access_token = None # Not adding these as they conflict with existing auth_header usage
         # self.refresh_token = None # Not adding these as they conflict with existing auth_header usage
@@ -39,6 +39,15 @@ class ApiClient:
             headers['Authorization'] = self.auth_header
         return headers
 
+    def _parse_json(self, response) -> Dict[str, Any]:
+        """Safely parse JSON from response, returning error dict if invalid."""
+        try:
+            if response.text:
+                return response.json()
+            return {'error': 'Empty response body'}
+        except Exception as e:
+            return {'error': f'Invalid JSON: {str(e)}'}
+
     # --- Auth Endpoints ---
 
     def login(self, username: str, password: str) -> Tuple[bool, Dict[str, Any]]:
@@ -48,14 +57,15 @@ class ApiClient:
         """
         try:
             res = requests.post(
-                f"{self.base_url}/login/", # Changed to use self.base_url.rstrip('/') and added trailing slash
+                f"{self.base_url}login/",
                 data={'username': username, 'password': password}
             )
             if res.status_code == 200:
-                data = res.json()
-                self.set_auth(data['access'])
+                data = self._parse_json(res)
+                if 'error' not in data:
+                    self.set_auth(data['access'])
                 return True, data
-            return False, res.json() if res.text else {'error': f'Status {res.status_code}'}
+            return False, self._parse_json(res)
         except requests.exceptions.ConnectionError as e:
             return False, {'error': f'Connection failed: {e}'}
         except Exception as e:
@@ -72,8 +82,8 @@ class ApiClient:
                 json={'username': username, 'email': email, 'password': password}
             )
             if res.status_code == 201:
-                return True, res.json()
-            return False, res.json() if res.text else {'error': f'Status {res.status_code}'}
+                return True, self._parse_json(res)
+            return False, self._parse_json(res)
         except requests.exceptions.ConnectionError as e:
             return False, {'error': f'Connection failed: {e}'}
         except Exception as e:
@@ -94,8 +104,8 @@ class ApiClient:
                     headers=self._get_headers()
                 )
             if res.status_code == 201:
-                return True, res.json()
-            return False, res.json() if res.text else {'error': f'Status {res.status_code}'}
+                return True, self._parse_json(res)
+            return False, self._parse_json(res)
         except requests.exceptions.ConnectionError as e:
             return False, {'error': f'Connection failed: {e}'}
         except Exception as e:
@@ -109,8 +119,8 @@ class ApiClient:
         try:
             res = requests.get(f"{self.base_url}history/", headers=self._get_headers())
             if res.status_code == 200:
-                return True, res.json()
-            return False, {'error': f'Status {res.status_code}'}
+                return True, self._parse_json(res)
+            return False, self._parse_json(res)
         except Exception as e:
             return False, {'error': str(e)}
 
@@ -121,8 +131,8 @@ class ApiClient:
         try:
             res = requests.get(f"{self.base_url}thresholds/", headers=self._get_headers())
             if res.status_code == 200:
-                return True, res.json()
-            return False, {'error': f'Status {res.status_code}'}
+                return True, self._parse_json(res)
+            return False, self._parse_json(res)
         except Exception as e:
             return False, {'error': str(e)}
 
@@ -135,8 +145,8 @@ class ApiClient:
                 headers={**self._get_headers(), 'Content-Type': 'application/json'}
             )
             if res.status_code == 200:
-                return True, res.json()
-            return False, {'error': f'Status {res.status_code}'}
+                return True, self._parse_json(res)
+            return False, self._parse_json(res)
         except Exception as e:
             return False, {'error': str(e)}
 
@@ -145,8 +155,8 @@ class ApiClient:
         try:
             res = requests.delete(f"{self.base_url}thresholds/", headers=self._get_headers())
             if res.status_code == 200:
-                return True, res.json()
-            return False, {'error': f'Status {res.status_code}'}
+                return True, self._parse_json(res)
+            return False, self._parse_json(res)
         except Exception as e:
             return False, {'error': str(e)}
 
@@ -159,8 +169,8 @@ class ApiClient:
                 headers={**self._get_headers(), 'Content-Type': 'application/json'}
             )
             if res.status_code == 200:
-                return True, res.json()
-            return False, res.json() if res.text else {'error': f'Status {res.status_code}'}
+                return True, self._parse_json(res)
+            return False, self._parse_json(res)
         except Exception as e:
             return False, {'error': str(e)}
 
